@@ -13,7 +13,6 @@ from typing import Optional, List
 from .naming import clean_name, extract_folder_path, generate_suggestions
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-AZURE_CLIENT_ID = os.environ.get("AZURE_CLIENT_ID", "YOUR_CLIENT_ID_HERE")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), '..', 'static')
 
 # Permissions needed
@@ -53,11 +52,6 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 def index():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
-
-@app.get("/api/config")
-def config():
-    """Return public config for the frontend (client ID, etc.)"""
-    return {"client_id": AZURE_CLIENT_ID}
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────

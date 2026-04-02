@@ -143,12 +143,55 @@
 
     <!-- ── STEP 1: Connect ── -->
     <div id="step-1">
-      <div class="card">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-cloud me-2"></i>Azure App Registration</div>
+        <div class="card-body">
+
+          <!-- Setup guide accordion -->
+          <div class="accordion mb-4" id="azure-setup-acc">
+            <div class="accordion-item" style="border-radius:10px;overflow:hidden;border:1px solid #e0e7ff">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed fw-semibold" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#azure-steps"
+                  style="background:#f0f4ff;border-radius:10px">
+                  <i class="bi bi-info-circle me-2 text-primary"></i>First time? How to create your Azure App Registration
+                </button>
+              </h2>
+              <div id="azure-steps" class="accordion-collapse collapse">
+                <div class="accordion-body bg-white">
+                  <ol class="mb-2" style="line-height:1.9">
+                    <li>Open <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade" target="_blank" class="fw-bold">Azure Portal → App Registrations → New Registration</a></li>
+                    <li>Name: anything you like (e.g. <strong>SharePoint Renamer</strong>)</li>
+                    <li>Supported account types: <strong>Accounts in any organizational directory (Multitenant)</strong></li>
+                    <li>Redirect URI: choose <strong>Single-page application (SPA)</strong> and paste this URL:<br>
+                      <code id="redirect-uri-display" class="d-block mt-1 p-2 bg-light rounded user-select-all" style="font-size:.85rem"></code>
+                    </li>
+                    <li>Click <strong>Register</strong>, then copy the <strong>Application (client) ID</strong> from the Overview page</li>
+                    <li>Go to <strong>API permissions → Add a permission → Microsoft Graph → Delegated</strong> and add:<br>
+                      <code>Sites.ReadWrite.All</code> &nbsp;and&nbsp; <code>Files.ReadWrite.All</code></li>
+                    <li>Click <strong>Grant admin consent</strong> (requires admin role)</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Client ID input -->
+          <div class="info-row mb-0">
+            <label>Application (Client) ID <span class="text-danger">*</span></label>
+            <input type="text" class="form-control font-monospace" id="client-id-input"
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              oninput="onClientIdChange()" autocomplete="off"/>
+            <div class="form-text">From the Overview page of your Azure App Registration. Stored locally in your browser.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="sign-in-options" class="card hidden">
         <div class="card-header"><i class="bi bi-plug me-2"></i>Connect to Microsoft 365</div>
         <div class="card-body">
-          <p class="text-muted">Sign in with your Microsoft 365 account. The first time you use this tool, your admin will need to approve it for your organization — this only takes a moment.</p>
-
-          <div class="row g-3 mt-1">
+          <p class="text-muted mb-4">Sign in with your Microsoft 365 account. The first time you connect, Microsoft will ask you to consent to the permissions your app registration requests.</p>
+          <div class="row g-3">
             <div class="col-md-6">
               <div class="card border h-100">
                 <div class="card-body">
@@ -172,7 +215,6 @@
               </div>
             </div>
           </div>
-
           <div id="auth-error" class="alert alert-danger mt-3 hidden"></div>
         </div>
       </div>
@@ -323,6 +365,7 @@
 // ═══════════════ Config & State ═══════════════
 let msalApp = null;
 let sessionId = localStorage.getItem('sp_session');
+let clientId  = localStorage.getItem('sp_client_id') || '';
 let writeAccess = false;
 let currentPage = 0;
 const PAGE_SIZE = 100;
@@ -346,6 +389,25 @@ const api = async (method, path, body) => {
   return r.json();
 };
 
+// ═══════════════ Init ═══════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Show redirect URI so user knows what to paste into Azure
+  const el = document.getElementById('redirect-uri-display');
+  if (el) el.textContent = window.location.origin;
+  // Pre-fill saved client ID
+  const inp = document.getElementById('client-id-input');
+  if (inp && clientId) { inp.value = clientId; onClientIdChange(); }
+});
+
+function onClientIdChange() {
+  const val = document.getElementById('client-id-input').value.trim();
+  clientId = val;
+  localStorage.setItem('sp_client_id', val);
+  msalApp = null; // reset so MSAL reinitializes with new ID
+  const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+  document.getElementById('sign-in-options').classList.toggle('hidden', !isGuid);
+}
+
 // ═══════════════ Landing ═══════════════
 function goToWizard() {
   document.getElementById('page-landing').style.display = 'none';
@@ -368,10 +430,10 @@ async function checkExistingSession() {
 // ═══════════════ Auth / MSAL ═══════════════
 async function initMsal() {
   if (msalApp) return msalApp;
-  const cfg = await fetch('/api/config').then(r => r.json());
+  if (!clientId) throw new Error('Please enter your Azure App Registration Client ID first.');
   msalApp = new msal.PublicClientApplication({
     auth: {
-      clientId:    cfg.client_id,
+      clientId,
       authority:   'https://login.microsoftonline.com/common',
       redirectUri: window.location.origin,
     },
