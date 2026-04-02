@@ -44,14 +44,13 @@ def new_session() -> tuple[str, dict]:
     return sid, _sessions[sid]
 
 # ── App ────────────────────────────────────────────────────────────────────────
-app = FastAPI(title="SharePoint Rename App")
+app = FastAPI(title="FileForge")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
 def index():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
-
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
@@ -101,10 +100,21 @@ def delete_session(x_session_id: Optional[str] = Header(None)):
 
 # ── Scan ───────────────────────────────────────────────────────────────────────
 
+class NamingRules(BaseModel):
+    target_length: int = 30
+    title_case: bool = True
+    remove_fillers: bool = True
+    split_camelcase: bool = True
+    normalize_dates: bool = True
+    custom_acronyms: List[str] = []
+    custom_abbrevs: dict = {}
+    custom_org_replacements: List[List[str]] = []
+
 class ScanConfig(BaseModel):
     site_url: str
     library: str
     exclude_folders: List[str] = ["Research"]
+    naming_rules: Optional[NamingRules] = None
 
 def _graph_get(token, url):
     resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=30)
@@ -205,9 +215,9 @@ def _do_scan(session_id: str, config: ScanConfig):
                 "over30":        False,
             })
 
-        generate_suggestions(rows)
-        for r in rows:
-            r["over30"] = len(r["suggested_name"]) > 30
+        rules_dict = config.naming_rules.dict() if config.naming_rules else None
+        generate_suggestions(rows, rules_dict)
+        # over30 is now set inside generate_suggestions based on target_length from rules
 
         sess['files'] = rows
         state.update({

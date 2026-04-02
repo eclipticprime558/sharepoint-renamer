@@ -130,6 +130,31 @@ PREFIX_SHORTCUTS = [
 ]
 
 
+def _merge_rules(rules):
+    """Merge custom rules dict into module-level defaults, return merged copies."""
+    import copy
+    acronyms = set(ACRONYMS)
+    abbrevs  = dict(WORD_ABBREVS)
+    org_reps = list(ORG_REPLACEMENTS)
+    if not rules:
+        return acronyms, abbrevs, org_reps, 30, True, True, True, True
+    for a in rules.get('custom_acronyms', []):
+        if a.strip():
+            acronyms.add(a.strip().upper())
+    for k, v in rules.get('custom_abbrevs', {}).items():
+        if k.strip() and v.strip():
+            abbrevs[k.strip()] = v.strip()
+    for pair in rules.get('custom_org_replacements', []):
+        if len(pair) == 2 and pair[0].strip() and pair[1].strip():
+            org_reps.insert(0, (re.escape(pair[0].strip()), pair[1].strip()))
+    target      = int(rules.get('target_length', 30))
+    title_case  = bool(rules.get('title_case', True))
+    rm_fillers  = bool(rules.get('remove_fillers', True))
+    split_cc    = bool(rules.get('split_camelcase', True))
+    norm_dates  = bool(rules.get('normalize_dates', True))
+    return acronyms, abbrevs, org_reps, target, title_case, rm_fillers, split_cc, norm_dates
+
+
 def fmt_date(raw):
     parts = re.split(r'[._]', raw)
     if len(parts) == 3:
@@ -172,7 +197,7 @@ def split_camel_case(text):
     return text
 
 
-def title_case_word(word, position):
+def title_case_word(word, position, acronyms):
     low = word.lower()
     if low in PRESERVE_EXACT:
         return PRESERVE_EXACT[low]
@@ -181,7 +206,7 @@ def title_case_word(word, position):
     upper = word.upper()
     if upper == "QUICKBOOKS":
         return "QuickBooks"
-    if upper in ACRONYMS:
+    if upper in acronyms:
         return upper
     if position > 0 and low in LOWERCASE_WORDS:
         return low
@@ -190,10 +215,10 @@ def title_case_word(word, position):
     return word.capitalize()
 
 
-def apply_title_case(text):
+def apply_title_case(text, acronyms):
     text = re.sub(r'\b([A-Z]{2,})#(\d+)', lambda m: m.group(1).upper() + '#' + m.group(2), text, flags=re.IGNORECASE)
     words = text.split()
-    return " ".join(title_case_word(w, i) for i, w in enumerate(words))
+    return " ".join(title_case_word(w, i, acronyms) for i, w in enumerate(words))
 
 
 def shorten_known_patterns(name):
@@ -205,7 +230,12 @@ def shorten_known_patterns(name):
     return name
 
 
-def clean_name(original):
+def clean_name(original, _rules_tuple=None):
+    if _rules_tuple is None:
+        acronyms, abbrevs, org_reps, target, title_case, rm_fillers, split_cc, norm_dates = _merge_rules(None)
+    else:
+        acronyms, abbrevs, org_reps, target, title_case, rm_fillers, split_cc, norm_dates = _rules_tuple
+
     name = original
 
     if name.startswith("~$"):
@@ -213,7 +243,7 @@ def clean_name(original):
 
     name = re.sub(r'\.(pdf|docx?|xlsx?|pptx?|csv|txt)\b', '', name, flags=re.IGNORECASE)
 
-    for pattern, replacement in ORG_REPLACEMENTS:
+    for pattern, replacement in org_reps:
         name = re.sub(pattern, replacement, name, flags=re.IGNORECASE)
 
     name = re.sub(r'\beSNAPS\b', 'ESNAPS', name, flags=re.IGNORECASE)
@@ -224,8 +254,14 @@ def clean_name(original):
     name = re.sub(r'\b(TX-\d+)\b', lambda m: m.group(1).replace('-', 'HYPHEN'), name)
     name = re.sub(r'\b(HMIS|SOAR|HUD|COC|ESG|RRH|SSVF|PATH|VASH|HCV|PSH)([(\[.])', r'\1 \2', name, flags=re.IGNORECASE)
 
-    name, date_str = extract_dates(name)
-    name = split_camel_case(name)
+    if norm_dates:
+        name, date_str = extract_dates(name)
+    else:
+        date_str = ""
+
+    if split_cc:
+        name = split_camel_case(name)
+
     name = re.sub(r'\s*-\s*', ' ', name)
     name = name.replace('_', ' ')
     name = name.replace('HYPHEN', '-')
@@ -234,15 +270,17 @@ def clean_name(original):
     name = shorten_known_patterns(name)
     name = re.sub(r'^(and|or|the|a)\s+', '', name, flags=re.IGNORECASE)
     name = re.sub(r'\s+', ' ', name).strip()
-    name = apply_title_case(name)
+
+    if title_case:
+        name = apply_title_case(name, acronyms)
     name = re.sub(r'\s+', ' ', name).strip()
 
-    for word, abbrev in WORD_ABBREVS.items():
+    for word, abbrev in abbrevs.items():
         name = re.sub(rf'\b{re.escape(word)}\b', abbrev, name)
 
     name = re.sub(r'\s+', ' ', name).strip()
 
-    if len(name) > 30:
+    if rm_fillers and len(name) > target:
         words = name.split()
         filtered = [words[0]] + [w for w in words[1:] if w.lower() not in FILLER_WORDS]
         name = ' '.join(filtered)
@@ -261,10 +299,13 @@ def extract_folder_path(raw_path):
     return match.group(1) if match else raw_path
 
 
-def generate_suggestions(rows):
+def generate_suggestions(rows, rules=None):
     """Apply clean_name to a list of row dicts. Returns rows with SuggestedName filled."""
+    merged = _merge_rules(rules)
+    acronyms, abbrevs, org_reps, target, title_case, rm_fillers, split_cc, norm_dates = merged
+
     for row in rows:
-        row['suggested_name'] = clean_name(row['original_name'])
+        row['suggested_name'] = clean_name(row['original_name'], _rules_tuple=merged)
 
     # Deduplicate
     name_counts = defaultdict(list)
@@ -278,5 +319,8 @@ def generate_suggestions(rows):
         if len(indices) > 1:
             for n, idx in enumerate(indices[1:], 1):
                 rows[idx]['suggested_name'] = f"{rows[idx]['suggested_name']} ({n})"
+
+    for r in rows:
+        r["over30"] = len(r["suggested_name"]) > target
 
     return rows
