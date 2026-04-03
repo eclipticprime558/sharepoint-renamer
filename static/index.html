@@ -477,11 +477,15 @@
       z-index: 1;
     }
 
-    /* ── Scroll reveal ── */
+    /* ── Page layers ── */
+    #page-landing { position: relative; z-index: 1; }
+    #page-wizard  { position: relative; z-index: 1; }
+
+    /* ── Scroll reveal (below-the-fold only — hero is always visible) ── */
     .reveal {
       opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
+      transform: translateY(24px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
     }
     .reveal.visible { opacity: 1; transform: translateY(0); }
     .reveal-delay-1 { transition-delay: 0.1s; }
@@ -940,17 +944,17 @@
     <p class="subtitle">
       Scan your SharePoint library, get smart name suggestions powered by custom rules, approve what looks right, and push changes via the Microsoft Graph API — all without touching a single file manually.
     </p>
-    <div class="step-pills reveal">
+    <div class="step-pills">
       <span class="step-pill"><i class="bi bi-plug me-1" style="color:var(--purple)"></i>Connect M365</span>
       <span class="step-pill"><i class="bi bi-search me-1" style="color:var(--blue)"></i>Scan Library</span>
       <span class="step-pill"><i class="bi bi-lightbulb me-1" style="color:var(--teal)"></i>Smart Suggestions</span>
       <span class="step-pill"><i class="bi bi-check2-all me-1" style="color:var(--green)"></i>Approve &amp; Apply</span>
     </div>
-    <div class="hero-cta reveal reveal-delay-1">
+    <div class="hero-cta">
       <button class="btn-galaxy btn-lg" onclick="goToWizard()">🚀 Get Started Free</button>
       <a href="#section-how" class="btn-galaxy-outline btn-lg" onclick="smoothTo('section-how',event)">See How It Works</a>
     </div>
-    <div class="scroll-hint reveal reveal-delay-2"><i class="bi bi-chevron-down"></i></div>
+    <div class="scroll-hint"><i class="bi bi-chevron-down"></i></div>
   </section>
 
   <!-- How It Works -->
@@ -1019,21 +1023,21 @@
             <div class="transform-demo-header">Live Transformation Example</div>
             <div class="demo-file-row demo-file-before">
               <span style="color:var(--dim); font-size:0.72rem; display:block; margin-bottom:4px">BEFORE</span>
-              Q3_Financial_Report_South_Alamo_Regional_Alliance_2024_FINAL_v2.docx
+              Q3_Financial_Report_Acme_Corporation_2024_FINAL_v2.docx
             </div>
             <div class="demo-arrow"><i class="bi bi-arrow-down-circle-fill"></i></div>
             <div class="demo-rules">
-              <span class="rule-badge rule-badge-pink" style="font-size:0.72rem">Org → SARAH</span>
+              <span class="rule-badge rule-badge-pink" style="font-size:0.72rem">Org → ACME</span>
               <span class="rule-badge rule-badge-teal" style="font-size:0.72rem">Fin Rpt (abbrev)</span>
               <span class="rule-badge rule-badge-blue" style="font-size:0.72rem">Date normalized</span>
               <span class="rule-badge rule-badge-purple" style="font-size:0.72rem">Fillers removed</span>
             </div>
             <div class="demo-file-row demo-file-after">
               <span style="color:rgba(74,222,128,0.6); font-size:0.72rem; display:block; margin-bottom:4px">AFTER</span>
-              SARAH Q3 2024 Fin Rpt Final.docx
+              ACME Q3 2024 Fin Rpt Final.docx
             </div>
             <div class="demo-footer">
-              63 chars → <span class="chars-ok">25 chars ✓ Under 30-char target</span>
+              55 chars → <span class="chars-ok">26 chars ✓ Under 30-char target</span>
             </div>
           </div>
         </div>
@@ -1530,7 +1534,7 @@
               <div class="mb-4">
                 <label class="galaxy-label">Custom Acronyms <span style="color:var(--dim); font-weight:400">(comma-separated)</span></label>
                 <input type="text" class="galaxy-input" id="custom-acronyms"
-                  placeholder="e.g. SARAH, CTH, COSA"/>
+                  placeholder="e.g. ACME, HUD, HMIS (comma-separated)"/>
                 <div style="font-size:0.76rem; color:var(--dim); margin-top:5px">These will always be uppercased and not abbreviated further.</div>
               </div>
 
@@ -1753,7 +1757,7 @@ function initReveal() {
         observer.unobserve(e.target);
       }
     });
-  }, { threshold: 0.15 });
+  }, { threshold: 0 });
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 }
 
@@ -1995,8 +1999,8 @@ function addOrgRow() {
   const last = rows[rows.length - 1];
   if (last) {
     const inputs = last.querySelectorAll('input');
-    if (inputs[0]) inputs[0].placeholder = 'Full org name (e.g. South Alamo Regional Alliance)';
-    if (inputs[1]) inputs[1].placeholder = 'Short (e.g. SARAH)';
+    if (inputs[0]) inputs[0].placeholder = 'Full org name (e.g. Acme Corporation)';
+    if (inputs[1]) inputs[1].placeholder = 'Short code (e.g. ACME)';
   }
 }
 
