@@ -4,480 +4,712 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FileForge — SharePoint File Renamer</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <style>
     :root {
-      --bg: #f4f6fa;
-      --surface: #ffffff;
-      --border: #e2e6ef;
-      --text: #111827;
-      --muted: #6b7280;
-      --accent: #2563eb;
-      --accent-light: #eff6ff;
-      --success: #16a34a;
-      --success-light: #f0fdf4;
-      --warning: #d97706;
-      --warning-light: #fffbeb;
-      --danger: #dc2626;
-      --danger-light: #fef2f2;
-      --header-h: 56px;
+      --purple: #8b5cf6;
+      --blue: #4f72ff;
+      --teal: #22d3ee;
+      --pink: #f472b6;
+      --green: #4ade80;
+      --bg: #050810;
+      --surface: #0d1224;
+      --surface2: #111827;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.12);
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --header-h: 60px;
     }
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 16px); }
-    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-top: var(--header-h); }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 20px); }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding-top: var(--header-h);
+      overflow-x: hidden;
+    }
 
-    /* ── Header ── */
+    /* ── Stars canvas ── */
+    #stars-canvas {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Nav ── */
     #app-header {
       position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
-      background: #0f172a; z-index: 1000;
+      background: rgba(5,8,16,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
       display: flex; align-items: center; padding: 0 24px; gap: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.3);
     }
-    .logo { color: #fff; font-weight: 700; font-size: 16px; white-space: nowrap; }
-    .logo span { color: #60a5fa; }
+    .logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 17px; color: #fff; white-space: nowrap;
+      text-decoration: none; display: flex; align-items: center; gap: 6px;
+    }
+    .logo-icon {
+      background: linear-gradient(135deg, var(--purple), var(--blue), var(--teal));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; font-size: 18px;
+    }
     .step-nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; }
     .step-nav::-webkit-scrollbar { display: none; }
     .step-link {
       display: flex; align-items: center; gap: 7px; padding: 5px 12px;
-      border-radius: 6px; text-decoration: none; white-space: nowrap;
-      color: #94a3b8; font-size: 13px; font-weight: 500; transition: all .15s;
+      border-radius: 8px; text-decoration: none; white-space: nowrap;
+      color: var(--muted); font-size: 13px; font-weight: 500;
+      font-family: 'Space Grotesk', sans-serif;
+      transition: all .15s;
     }
-    .step-link:hover { color: #e2e8f0; background: rgba(255,255,255,.08); }
-    .step-link.active { color: #fff; background: rgba(255,255,255,.12); }
-    .step-link.done .sn { background: #16a34a !important; }
+    .step-link:hover { color: #e2e8f0; background: rgba(255,255,255,.06); }
+    .step-link.active { color: #fff; background: rgba(139,92,246,.15); }
+    .step-link.done .sn { background: linear-gradient(135deg, #16a34a, #4ade80) !important; }
+    .step-link.done .sn::after { content: '✓'; }
+    .step-link.done .sn span { display: none; }
     .step-link .sn {
-      width: 20px; height: 20px; border-radius: 50%; background: #374151;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(255,255,255,.1);
       display: flex; align-items: center; justify-content: center;
       font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
     }
-    .step-link.active .sn { background: var(--accent); }
-    #sign-out-btn { margin-left: auto; color: #94a3b8; background: none; border: 1px solid #334155; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
-    #sign-out-btn:hover { color: #fff; border-color: #64748b; }
-    #user-chip { color: #94a3b8; font-size: 12px; white-space: nowrap; display: none; }
+    .step-link.active .sn { background: linear-gradient(135deg, var(--purple), var(--blue)); }
+    #user-area { display: none; align-items: center; gap: 8px; margin-left: auto; }
+    #user-chip { color: var(--muted); font-size: 12px; }
+    #sign-out-btn {
+      color: var(--muted); background: none;
+      border: 1px solid rgba(255,255,255,.12); border-radius: 7px;
+      padding: 5px 12px; font-size: 12px; cursor: pointer; white-space: nowrap;
+      font-family: 'Space Grotesk', sans-serif;
+      transition: all .15s;
+    }
+    #sign-out-btn:hover { color: #fff; border-color: rgba(255,255,255,.3); }
 
     /* ── Layout ── */
-    main { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+    main { max-width: 960px; margin: 0 auto; padding: 36px 20px 100px; position: relative; z-index: 1; }
 
     /* ── Section cards ── */
-    .step-section { margin-bottom: 48px; }
+    .step-section { margin-bottom: 56px; }
     .step-header {
-      display: flex; align-items: flex-start; gap: 14px;
-      padding: 24px 28px; background: var(--surface);
-      border: 1px solid var(--border); border-radius: 12px 12px 0 0;
-      border-bottom: 2px solid var(--accent);
+      display: flex; align-items: flex-start; gap: 16px;
+      padding: 28px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      border-bottom: 1px solid rgba(139,92,246,.3);
     }
     .step-badge {
-      width: 36px; height: 36px; border-radius: 50%; background: var(--accent);
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
       color: #fff; font-weight: 700; font-size: 15px;
+      font-family: 'Space Grotesk', sans-serif;
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      box-shadow: 0 0 16px rgba(139,92,246,.4);
     }
-    .step-badge.done { background: var(--success); }
-    .step-header h2 { font-size: 18px; font-weight: 700; margin: 0 0 2px; }
+    .step-badge.done {
+      background: linear-gradient(135deg, #166534, #4ade80);
+      box-shadow: 0 0 16px rgba(74,222,128,.3);
+    }
+    .step-header h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 19px; font-weight: 700; margin: 0 0 4px; color: #fff;
+    }
     .step-header p { font-size: 13px; color: var(--muted); margin: 0; }
     .step-body {
-      background: var(--surface); border: 1px solid var(--border);
-      border-top: none; border-radius: 0 0 12px 12px; padding: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 16px 16px;
+      padding: 32px;
     }
 
-    /* ── Form ── */
-    label { font-size: 13px; font-weight: 600; color: var(--text); display: block; margin-bottom: 4px; }
-    .form-control, .form-select {
-      border: 1px solid var(--border); border-radius: 7px;
-      font-size: 13px; padding: 8px 12px; background: var(--surface); transition: border-color .15s;
+    /* ── Gradient text ── */
+    .grad-text {
+      background: linear-gradient(135deg, var(--purple), var(--blue), var(--teal));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
-    .form-control:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); outline: none; }
-    .form-text { font-size: 12px; color: var(--muted); margin-top: 3px; }
 
-    /* ── Buttons ── */
-    .btn-primary-custom { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-primary-custom:hover { background: #1d4ed8; }
-    .btn-primary-custom:disabled { background: #93c5fd; cursor: not-allowed; }
-    .btn-outline-custom { background: none; color: var(--accent); border: 1px solid var(--accent); border-radius: 7px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-outline-custom:hover { background: var(--accent-light); }
-    .btn-success-custom { background: var(--success); color: #fff; border: none; border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-success-custom:hover { background: #15803d; }
-    .btn-danger-custom { background: var(--danger); color: #fff; border: none; border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-danger-custom:hover:not(:disabled) { background: #b91c1c; }
-    .btn-danger-custom:disabled { background: #fca5a5; cursor: not-allowed; }
+    /* ── Galaxy buttons ── */
+    .btn-galaxy {
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: #fff; border: none; border-radius: 10px;
+      padding: 10px 20px; font-size: 14px; font-weight: 600;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer; transition: all .2s;
+      display: inline-flex; align-items: center; gap: 8px;
+      box-shadow: 0 0 20px rgba(139,92,246,.35);
+    }
+    .btn-galaxy:hover { box-shadow: 0 0 28px rgba(139,92,246,.55); transform: translateY(-1px); }
+    .btn-galaxy:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-galaxy-sm {
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: #fff; border: none; border-radius: 8px;
+      padding: 7px 14px; font-size: 12px; font-weight: 600;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer; transition: all .2s;
+      display: inline-flex; align-items: center; gap: 6px;
+      box-shadow: 0 0 12px rgba(139,92,246,.3);
+    }
+    .btn-galaxy-sm:hover { box-shadow: 0 0 20px rgba(139,92,246,.5); transform: translateY(-1px); }
+    .btn-outline-galaxy {
+      background: transparent; color: var(--purple);
+      border: 1px solid rgba(139,92,246,.5); border-radius: 10px;
+      padding: 10px 20px; font-size: 14px; font-weight: 600;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer; transition: all .2s;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-outline-galaxy:hover { background: rgba(139,92,246,.1); border-color: var(--purple); }
+    .btn-ghost {
+      background: rgba(255,255,255,.05); color: var(--text);
+      border: 1px solid var(--border2); border-radius: 8px;
+      padding: 7px 14px; font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all .15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,.09); }
+    .btn-danger {
+      background: rgba(239,68,68,.15); color: #f87171;
+      border: 1px solid rgba(239,68,68,.3); border-radius: 8px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,.25); }
+    .btn-danger:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-success {
+      background: rgba(74,222,128,.15); color: var(--green);
+      border: 1px solid rgba(74,222,128,.3); border-radius: 8px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-success:hover { background: rgba(74,222,128,.25); }
+
+    /* ── Inputs ── */
+    .inp {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 14px; padding: 10px 14px;
+      width: 100%; transition: border-color .15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .inp:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(139,92,246,.15); outline: none; }
+    .inp::placeholder { color: var(--muted); }
+    .inp-sm { font-size: 13px; padding: 7px 11px; }
+    label.lbl { font-size: 13px; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px; }
+    .form-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
     /* ── Alerts ── */
-    .alert-info { background: var(--accent-light); border: 1px solid #bfdbfe; color: #1e40af; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
-    .alert-success { background: var(--success-light); border: 1px solid #bbf7d0; color: #15803d; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
-    .alert-warning { background: var(--warning-light); border: 1px solid #fde68a; color: #92400e; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
-    .alert-danger { background: var(--danger-light); border: 1px solid #fecaca; color: #991b1b; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
+    .alert { border-radius: 10px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; }
+    .alert-info { background: rgba(79,114,255,.1); border: 1px solid rgba(79,114,255,.3); color: #93c5fd; }
+    .alert-warning { background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.3); color: #fcd34d; }
+    .alert-success { background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.3); color: #86efac; }
+    .alert-danger { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); color: #fca5a5; }
 
-    /* ── Step 1: Azure ── */
-    .setup-steps { display: flex; flex-direction: column; }
-    .setup-step { display: flex; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border); }
-    .setup-step:last-child { border-bottom: none; padding-bottom: 0; }
-    .setup-step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
-    .setup-step h5 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
-    .setup-step p { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.6; }
-    .path-pill { display: inline-flex; align-items: center; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 5px; padding: 1px 8px; font-size: 12px; font-family: monospace; color: #0f172a; margin: 1px 2px; }
-    .scope-tag { display: inline-block; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-family: monospace; color: #334155; margin: 2px; }
-    .perm-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
-    .perm-card { flex: 1; min-width: 200px; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
-    .perm-card h6 { font-size: 13px; font-weight: 600; margin: 0 0 4px; }
-    .perm-card p { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
-    .kbd { display: inline-block; background: #f1f5f9; border: 1px solid #e2e8f0; border-bottom-width: 2px; border-radius: 4px; padding: 1px 7px; font-family: monospace; font-size: 12px; color: #334155; }
+    /* ── Step 1 Option Cards ── */
+    .option-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .option-cards { grid-template-columns: 1fr; } }
+    .option-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      background: var(--surface2);
+      transition: border-color .2s;
+      position: relative;
+    }
+    .option-card.recommended {
+      border-color: rgba(139,92,246,.4);
+      background: linear-gradient(160deg, rgba(139,92,246,.06) 0%, var(--surface2) 60%);
+    }
+    .option-card.recommended::before {
+      content: 'RECOMMENDED';
+      position: absolute; top: -1px; right: 18px;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: #fff; font-size: 10px; font-weight: 700;
+      font-family: 'Space Grotesk', sans-serif;
+      letter-spacing: .06em;
+      padding: 3px 10px; border-radius: 0 0 8px 8px;
+    }
+    .option-card h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 16px; font-weight: 700; margin: 0 0 6px; color: #fff;
+    }
+    .option-card p { font-size: 13px; color: var(--muted); margin: 0 0 16px; line-height: 1.6; }
 
-    /* ── Step 2: Connect ── */
-    .signin-options { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .status-dot.connected { background: var(--success); box-shadow: 0 0 0 3px #bbf7d0; }
-    .badge-read { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-    .badge-write { background: var(--success-light); color: #15803d; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    /* Device code panel */
+    #device-code-panel { display: none; margin-top: 16px; }
+    .code-display {
+      font-family: 'Space Grotesk', monospace;
+      font-size: 28px; font-weight: 700; letter-spacing: .2em;
+      background: rgba(139,92,246,.15);
+      border: 1px solid rgba(139,92,246,.4);
+      border-radius: 10px; padding: 16px 24px;
+      text-align: center; color: #fff;
+      margin: 12px 0;
+    }
+    .url-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .url-link { color: var(--teal); text-decoration: underline; font-size: 13px; word-break: break-all; }
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(139,92,246,.3); border-top-color: var(--purple);
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
 
-    /* ── Step 3: Config ── */
+    /* Sign-in area */
+    #signin-area { display: none; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+    .access-toggle {
+      display: inline-flex; border: 1px solid var(--border2);
+      border-radius: 10px; overflow: hidden; margin-bottom: 20px;
+    }
+    .access-toggle button {
+      padding: 8px 18px; font-size: 13px; font-weight: 600;
+      font-family: 'Space Grotesk', sans-serif;
+      border: none; cursor: pointer; transition: all .15s; background: transparent; color: var(--muted);
+    }
+    .access-toggle button.active { background: linear-gradient(135deg, var(--purple), var(--blue)); color: #fff; }
+    #connected-status { display: none; margin-top: 16px; }
+    .connected-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); flex-shrink: 0; }
+    .badge {
+      padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      font-family: 'Space Grotesk', sans-serif; letter-spacing: .04em;
+    }
+    .badge-read { background: rgba(79,114,255,.15); color: #93c5fd; border: 1px solid rgba(79,114,255,.3); }
+    .badge-write { background: rgba(74,222,128,.15); color: var(--green); border: 1px solid rgba(74,222,128,.3); }
+
+    /* ── Step 2: Configure ── */
     .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     @media (max-width: 600px) { .config-grid { grid-template-columns: 1fr; } }
-    .rules-panel { border: 1px solid var(--border); border-radius: 8px; margin-top: 16px; }
-    .rules-toggle { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; font-size: 13px; font-weight: 600; border-radius: 8px; }
-    .rules-toggle:hover { background: #f8fafc; }
-    .rules-body { padding: 16px; border-top: 1px solid var(--border); display: none; }
+    .rules-panel { border: 1px solid var(--border); border-radius: 12px; margin-top: 20px; overflow: hidden; }
+    .rules-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; cursor: pointer; user-select: none;
+      font-size: 13px; font-weight: 600; color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      transition: background .15s;
+    }
+    .rules-toggle:hover { background: rgba(255,255,255,.03); }
+    .rules-body { padding: 20px 18px; border-top: 1px solid var(--border); display: none; }
     .rules-body.open { display: block; }
-    .rule-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .rule-row label { margin: 0; flex: 1; font-weight: 500; font-size: 13px; cursor: pointer; }
-    .form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
-    .custom-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+    .rule-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .rule-row label { margin: 0; flex: 1; font-weight: 500; font-size: 13px; cursor: pointer; color: var(--text); }
+    .toggle-switch { position: relative; display: inline-block; width: 34px; height: 18px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: rgba(255,255,255,.1); border-radius: 18px; transition: .2s;
+    }
+    .toggle-slider:before {
+      content: ''; position: absolute;
+      height: 12px; width: 12px; left: 3px; bottom: 3px;
+      background: #fff; border-radius: 50%; transition: .2s;
+    }
+    input:checked + .toggle-slider { background: linear-gradient(135deg, var(--purple), var(--blue)); }
+    input:checked + .toggle-slider:before { transform: translateX(16px); }
+    .custom-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
     .custom-row { display: flex; gap: 6px; align-items: center; }
-    .custom-row input { flex: 1; font-size: 12px; }
-    .add-row-btn { background: none; border: 1px dashed #94a3b8; color: #64748b; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; margin-top: 4px; }
-    .add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .rm-row-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0 4px; font-size: 16px; line-height: 1; }
+    .custom-row .inp { font-size: 12px; padding: 6px 10px; }
+    .add-row-btn {
+      background: none; border: 1px dashed rgba(255,255,255,.2); color: var(--muted);
+      border-radius: 8px; padding: 5px 12px; font-size: 12px; cursor: pointer; margin-top: 6px;
+      transition: all .15s;
+    }
+    .add-row-btn:hover { border-color: var(--purple); color: var(--purple); }
+    .rm-row-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 16px; }
     .rm-row-btn:hover { color: var(--danger); }
     .len-row { display: flex; align-items: center; gap: 12px; }
-    .len-row input[type=range] { flex: 1; accent-color: var(--accent); }
-    .len-val { font-weight: 700; color: var(--accent); min-width: 28px; text-align: center; }
-    hr.divider { border-color: var(--border); margin: 16px 0; }
+    .len-row input[type=range] { flex: 1; accent-color: var(--purple); }
+    .len-val { font-weight: 700; color: var(--purple); min-width: 28px; text-align: center; font-family: 'Space Grotesk', sans-serif; }
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 
-    /* ── Demo table ── */
-    .demo-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    .demo-table th { background: #f1f5f9; padding: 7px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; border-bottom: 2px solid var(--border); }
-    .demo-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); font-family: monospace; font-size: 12px; }
-    .demo-table .arrow { color: #94a3b8; font-family: sans-serif; font-size: 12px; width: 20px; }
-    .demo-table .after { color: var(--success); font-weight: 600; }
-    .demo-table tr.temp .after { color: var(--danger); }
+    /* Example table in configure */
+    .example-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .example-table th {
+      background: #166534; color: #fff; font-weight: 700;
+      padding: 8px 12px; text-align: left; border: 1px solid #15803d;
+      font-family: 'Space Grotesk', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .example-table td { padding: 7px 12px; border: 1px solid #1f2937; }
+    .example-table tbody tr:nth-child(odd) td { background: #0d1224; }
+    .example-table tbody tr:nth-child(even) td { background: #111827; }
+    .example-table .orig { font-family: monospace; color: #94a3b8; }
+    .example-table .sug { font-family: monospace; color: #4ade80; font-weight: 600; }
+    .example-table .sug.temp { color: #f87171; }
+    .example-table .rule-note { color: #64748b; font-size: 11px; }
 
-    /* ── Step 4: Scan ── */
-    #scan-log { background: #0f172a; color: #94a3b8; font-family: monospace; font-size: 12px; border-radius: 8px; padding: 14px; min-height: 60px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; }
-    .progress-wrap { margin-top: 10px; display: none; }
-    .progress-bar-track { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background: var(--accent); transition: width .3s; border-radius: 2px; }
+    /* ── Step 3: Scan ── */
+    #scan-log {
+      background: #070d1a; color: #94a3b8; font-family: monospace; font-size: 12px;
+      border-radius: 10px; border: 1px solid var(--border);
+      padding: 16px; min-height: 60px; max-height: 180px;
+      overflow-y: auto; white-space: pre-wrap; display: none; margin-top: 12px;
+    }
+    .progress-wrap { margin-top: 12px; display: none; }
+    .progress-track { height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--purple), var(--blue)); transition: width .3s; border-radius: 2px; }
 
-    /* ── Step 5: Review ── */
-    .stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-    .stat-card { flex: 1; min-width: 100px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
-    .stat-card .val { font-size: 22px; font-weight: 700; }
-    .stat-card .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-    .stat-card.s-success .val { color: var(--success); }
+    /* ── Step 4: Review ── */
+    .stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .stat-card {
+      flex: 1; min-width: 90px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .stat-card .val { font-size: 24px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
+    .stat-card .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+    .stat-card.s-success .val { color: var(--green); }
     .stat-card.s-warning .val { color: var(--warning); }
     .stat-card.s-danger .val { color: var(--danger); }
 
-    .review-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
-    .review-bar .form-control { font-size: 12px; padding: 6px 10px; max-width: 220px; }
-    .review-bar .form-select { font-size: 12px; padding: 6px 10px; max-width: 180px; }
-    .filter-check { font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .review-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+    .review-bar .inp-sm { max-width: 220px; }
 
-    /* Spreadsheet */
-    .sheet-wrap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    /* Excel-style spreadsheet */
+    #sample-banner {
+      background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.3);
+      color: #fcd34d; border-radius: 8px; padding: 8px 14px;
+      font-size: 13px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .sheet-wrap { border: 1px solid #374151; border-radius: 10px; overflow: hidden; }
     .sheet-scroll { overflow-x: auto; overflow-y: auto; max-height: 500px; }
     table.sheet { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
-    table.sheet thead th { position: sticky; top: 0; background: #f8fafc; border-bottom: 2px solid var(--border); padding: 8px 10px; font-weight: 600; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; cursor: pointer; user-select: none; z-index: 1; }
-    table.sheet thead th:hover { background: #f1f5f9; }
-    table.sheet td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
-    table.sheet tbody tr:hover td { background: #f8fafc; }
-    table.sheet tbody tr.row-approved td { background: #f0fdf4; }
-    table.sheet tbody tr.row-temp td { background: var(--danger-light); }
-    .col-n { width: 42px; text-align: right; color: var(--muted); }
-    .col-folder { width: 140px; }
-    .col-orig { width: 210px; font-family: monospace; color: #374151; }
-    .col-sug { width: 210px; }
-    .col-chars { width: 52px; text-align: center; }
-    .col-ok { width: 52px; text-align: center; }
-    .chars-ok { display: inline-block; background: #f0fdf4; color: #15803d; border-radius: 4px; padding: 1px 5px; font-size: 11px; font-weight: 600; }
-    .chars-warn { display: inline-block; background: var(--warning-light); color: #92400e; border-radius: 4px; padding: 1px 5px; font-size: 11px; font-weight: 600; }
-    .name-cell { display: flex; align-items: center; gap: 3px; }
-    .name-text { flex: 1; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
-    .edit-btn { background: none; border: none; color: #cbd5e1; padding: 0 3px; cursor: pointer; font-size: 12px; flex-shrink: 0; opacity: 0; }
+    table.sheet thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #166534; color: #fff; font-weight: 700;
+      border: 1px solid #15803d;
+      padding: 8px 10px; white-space: nowrap;
+      font-family: 'Space Grotesk', sans-serif; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .04em;
+      cursor: pointer; user-select: none;
+    }
+    table.sheet thead th:hover { background: #15803d; }
+    table.sheet td {
+      padding: 5px 8px;
+      border: 1px solid #1f2937;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 0; vertical-align: middle;
+    }
+    table.sheet tbody tr { background: #0d1224; }
+    table.sheet tbody tr:nth-child(even) { background: #0f1520; }
+    table.sheet tbody tr.row-approved td { background: rgba(74,222,128,.06) !important; }
+    table.sheet tbody tr.row-over td { background: rgba(251,191,36,.06) !important; }
+    table.sheet tbody tr.row-temp td { background: rgba(248,113,113,.06) !important; }
+    table.sheet tbody tr:hover td { filter: brightness(1.15); }
+    .col-n    { width: 42px; text-align: right; color: var(--muted); }
+    .col-folder { width: 130px; color: var(--muted); font-size: 11px; }
+    .col-orig { width: 200px; font-family: monospace; color: #94a3b8; }
+    .col-ext  { width: 52px; text-align: center; }
+    .col-sug  { width: 210px; }
+    .col-chars{ width: 52px; text-align: center; }
+    .col-ok   { width: 44px; text-align: center; }
+    .chars-ok   { display: inline-block; background: rgba(74,222,128,.15); color: var(--green); border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
+    .chars-warn { display: inline-block; background: rgba(251,191,36,.15); color: var(--warning); border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
+    .name-cell { display: flex; align-items: center; gap: 4px; }
+    .name-text { flex: 1; overflow: hidden; text-overflow: ellipsis; font-family: monospace; color: #e2e8f0; }
+    .edit-btn { background: none; border: none; color: #475569; padding: 0 3px; cursor: pointer; font-size: 11px; flex-shrink: 0; opacity: 0; transition: opacity .1s; }
     tr:hover .edit-btn { opacity: 1; }
-    .edit-btn:hover { color: var(--accent); }
-    .name-edit-input { border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px; font-size: 12px; font-family: monospace; width: 100%; outline: none; }
-    .approve-cb { cursor: pointer; width: 15px; height: 15px; accent-color: var(--success); }
-    .sheet-foot { padding: 8px 12px; background: #f8fafc; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .edit-btn:hover { color: var(--purple); }
+    .name-edit-input {
+      border: 1px solid var(--purple); border-radius: 5px;
+      padding: 2px 7px; font-size: 12px; font-family: monospace;
+      width: 100%; outline: none;
+      background: rgba(139,92,246,.1); color: #fff;
+    }
+    .approve-cb { cursor: pointer; width: 14px; height: 14px; accent-color: var(--green); }
+    .sheet-foot {
+      padding: 8px 14px; background: #0a0f1c;
+      border-top: 1px solid #1f2937;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; color: var(--muted);
+    }
     .page-btns { display: flex; gap: 3px; }
-    .page-btn { background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; }
-    .page-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .page-btn.cur { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .bulk-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
-    .claude-btn { background: #7c3aed; color: #fff; border: none; border-radius: 7px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
-    .claude-btn:hover { background: #6d28d9; }
-    .empty-msg { text-align: center; padding: 36px 16px; color: var(--muted); font-size: 13px; }
+    .page-btn {
+      background: none; border: 1px solid var(--border); border-radius: 5px;
+      padding: 2px 8px; font-size: 11px; cursor: pointer; color: var(--muted); transition: all .15s;
+    }
+    .page-btn:hover { border-color: var(--purple); color: var(--purple); }
+    .page-btn.cur { background: linear-gradient(135deg, var(--purple), var(--blue)); color: #fff; border-color: transparent; }
+    .bulk-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+    .empty-msg { text-align: center; padding: 40px 16px; color: var(--muted); font-size: 13px; }
 
-    /* ── Step 6: Rename ── */
-    .folder-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-    .folder-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 14px; cursor: pointer; transition: all .15s; }
-    .folder-card:hover { border-color: var(--accent); background: var(--accent-light); }
-    .folder-card.sel { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 2px rgba(37,99,235,.12); }
-    .fc-icon { font-size: 20px; color: var(--accent); padding-top: 2px; }
-    .fc-name { font-weight: 600; font-size: 14px; }
+    /* ── Step 5: Rename ── */
+    .folder-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+    .folder-card {
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px 20px; display: flex; align-items: flex-start; gap: 14px;
+      cursor: pointer; transition: all .15s; background: var(--surface2);
+    }
+    .folder-card:hover { border-color: rgba(139,92,246,.4); background: rgba(139,92,246,.05); }
+    .folder-card.sel { border-color: var(--purple); background: rgba(139,92,246,.08); box-shadow: 0 0 0 2px rgba(139,92,246,.15); }
+    .fc-icon { font-size: 20px; color: var(--purple); padding-top: 2px; flex-shrink: 0; }
+    .fc-name { font-weight: 600; font-size: 14px; font-family: 'Space Grotesk', sans-serif; color: #fff; }
     .fc-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .fc-bar { height: 3px; background: #e5e7eb; border-radius: 2px; overflow: hidden; margin-top: 6px; }
-    .fc-fill { height: 100%; background: var(--success); border-radius: 2px; }
-    .rename-log-wrap { margin-top: 14px; display: none; }
-    .rename-log { background: #0f172a; color: #94a3b8; font-family: monospace; font-size: 12px; border-radius: 8px; padding: 12px; max-height: 140px; overflow-y: auto; }
-    .log-ok { color: #4ade80; }
-    .log-err { color: #f87171; }
+    .fc-bar { height: 3px; background: rgba(255,255,255,.07); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+    .fc-fill { height: 100%; background: linear-gradient(90deg, var(--purple), var(--green)); border-radius: 2px; }
+    .rename-log-wrap { margin-top: 16px; display: none; }
+    .rename-log {
+      background: #070d1a; color: #94a3b8; font-family: monospace; font-size: 12px;
+      border-radius: 10px; border: 1px solid var(--border);
+      padding: 14px; max-height: 160px; overflow-y: auto;
+    }
+    .log-ok  { color: var(--green); }
+    .log-err { color: var(--danger); }
 
     /* ── Toast ── */
-    #toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-    .toast-item { background: #1e293b; color: #f1f5f9; border-radius: 8px; padding: 10px 16px; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.2); opacity: 0; transition: opacity .2s; }
+    #toast-wrap { position: fixed; bottom: 28px; right: 28px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast-item {
+      background: rgba(13,18,36,.95);
+      border: 1px solid var(--border2);
+      color: var(--text); border-radius: 10px;
+      padding: 12px 18px; font-size: 13px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      opacity: 0; transition: opacity .2s; max-width: 320px;
+      backdrop-filter: blur(8px);
+    }
     .toast-item.show { opacity: 1; }
+
+    /* ── Misc ── */
+    .mb-3 { margin-bottom: 12px; }
+    .mb-4 { margin-bottom: 20px; }
+    .mt-3 { margin-top: 12px; }
+    .mt-4 { margin-top: 20px; }
+    .d-none { display: none !important; }
+    .copy-btn {
+      background: rgba(255,255,255,.06); border: 1px solid var(--border2);
+      color: var(--muted); border-radius: 6px; padding: 3px 9px;
+      font-size: 11px; cursor: pointer; transition: all .15s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,.1); color: var(--text); }
+    .section-label {
+      font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
 
-<header id="app-header">
-  <div class="logo">File<span>Forge</span></div>
-  <nav class="step-nav">
-    <a href="#s1" class="step-link active" id="nav-1"><span class="sn">1</span><span>Azure Setup</span></a>
-    <a href="#s2" class="step-link" id="nav-2"><span class="sn">2</span><span>Connect</span></a>
-    <a href="#s3" class="step-link" id="nav-3"><span class="sn">3</span><span>Configure</span></a>
-    <a href="#s4" class="step-link" id="nav-4"><span class="sn">4</span><span>Scan</span></a>
-    <a href="#s5" class="step-link" id="nav-5"><span class="sn">5</span><span>Review</span></a>
-    <a href="#s6" class="step-link" id="nav-6"><span class="sn">6</span><span>Rename</span></a>
-  </nav>
-  <span id="user-chip"><i class="bi bi-person-circle me-1"></i><span id="user-name-chip"></span></span>
-  <button id="sign-out-btn" style="display:none" onclick="signOut()"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button>
-</header>
-
+<canvas id="stars-canvas"></canvas>
 <div id="toast-wrap"></div>
+
+<!-- ── Nav ── -->
+<header id="app-header">
+  <a href="#" class="logo">
+    <span class="logo-icon">⬥</span>FileForge
+  </a>
+  <nav class="step-nav">
+    <a href="#s1" class="step-link active" id="nav-1"><span class="sn"><span>1</span></span> Get Started</a>
+    <a href="#s2" class="step-link" id="nav-2"><span class="sn"><span>2</span></span> Configure</a>
+    <a href="#s3" class="step-link" id="nav-3"><span class="sn"><span>3</span></span> Scan</a>
+    <a href="#s4" class="step-link" id="nav-4"><span class="sn"><span>4</span></span> Review</a>
+    <a href="#s5" class="step-link" id="nav-5"><span class="sn"><span>5</span></span> Rename</a>
+  </nav>
+  <div id="user-area">
+    <span id="user-chip"></span>
+    <button id="sign-out-btn" onclick="signOut()">Sign out</button>
+  </div>
+</header>
 
 <main>
 
-<!-- ════════════════════════════════
-     1 · Azure App Registration
-════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════
+     1 · Get Started
+═══════════════════════════════════════════ -->
 <section class="step-section" id="s1">
   <div class="step-header">
     <div class="step-badge" id="badge-1">1</div>
     <div>
-      <h2>Register an App in Azure</h2>
-      <p>One-time setup — grants FileForge permission to read (and optionally rename) your SharePoint files.</p>
+      <h2>Get Started</h2>
+      <p>Connect FileForge to your Microsoft 365 tenant — auto-setup takes 30 seconds, no portal needed.</p>
     </div>
   </div>
   <div class="step-body">
 
-    <div class="alert-info mb-4">
-      <i class="bi bi-info-circle me-2"></i>
-      You need a <strong>Microsoft 365 admin account</strong> to complete app registration. If you're not the admin, forward these steps to your IT department.
-    </div>
+    <div class="option-cards mb-4">
 
-    <div class="setup-steps">
-      <div class="setup-step">
-        <div class="setup-step-num">1</div>
-        <div>
-          <h5>Open App Registrations</h5>
-          <p>Sign in to <strong>portal.azure.com</strong>, search <span class="path-pill">App registrations</span> in the top bar, then click <strong>+ New registration</strong>.</p>
-        </div>
-      </div>
-      <div class="setup-step">
-        <div class="setup-step-num">2</div>
-        <div>
-          <h5>Fill In the Registration Form</h5>
-          <p>
-            <strong>Name:</strong> something descriptive, e.g. <span class="kbd">SharePoint File Manager</span><br>
-            <strong>Supported account types:</strong> <em>Accounts in this organizational directory only</em><br>
-            Leave Redirect URI blank for now. Click <strong>Register</strong>.
-          </p>
-        </div>
-      </div>
-      <div class="setup-step">
-        <div class="setup-step-num">3</div>
-        <div>
-          <h5>Copy Your Client ID</h5>
-          <p>On the app's <strong>Overview</strong> page, copy the <strong>Application (client) ID</strong> — a GUID like <span class="kbd">xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</span>. You'll paste it in Step 2 below.</p>
-        </div>
-      </div>
-      <div class="setup-step">
-        <div class="setup-step-num">4</div>
-        <div>
-          <h5>Add API Permissions</h5>
-          <p>Go to <span class="path-pill">API permissions</span> → <strong>Add a permission</strong> → <strong>Microsoft Graph</strong> → <strong>Delegated permissions</strong>. Add the scopes for your use case:</p>
-          <div class="perm-grid mt-2">
-            <div class="perm-card">
-              <h6><i class="bi bi-eye text-primary me-1"></i>Scan Only</h6>
-              <p>Read-only — no changes made to SharePoint</p>
-              <span class="scope-tag">Sites.Read.All</span>
-              <span class="scope-tag">Files.Read.All</span>
-            </div>
-            <div class="perm-card">
-              <h6><i class="bi bi-pencil text-success me-1"></i>Scan + Rename</h6>
-              <p>Can read and rename files in SharePoint</p>
-              <span class="scope-tag">Sites.ReadWrite.All</span>
-              <span class="scope-tag">Files.ReadWrite.All</span>
-            </div>
+      <!-- Auto Setup card -->
+      <div class="option-card recommended">
+        <h3>Auto-Create Azure App</h3>
+        <p>We'll set one up in your tenant — takes 30 seconds, no portal needed.</p>
+        <button class="btn-galaxy" id="auto-setup-btn" onclick="startAutoSetup()">
+          ⚡ Start Auto-Setup
+        </button>
+
+        <!-- Device code panel -->
+        <div id="device-code-panel">
+          <div class="url-row mt-3">
+            <span style="font-size:13px;color:var(--muted)">Open in any browser:</span>
+            <a id="dc-url" href="#" target="_blank" class="url-link"></a>
+            <button class="copy-btn" onclick="copyText(document.getElementById('dc-url').textContent)">Copy</button>
           </div>
+          <div class="code-display" id="dc-code">—</div>
+          <button class="copy-btn" style="display:block;margin:0 auto 12px" onclick="copyText(document.getElementById('dc-code').textContent.trim())">Copy code</button>
+          <div id="dc-status" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+            <span class="spinner"></span>
+            <span class="pulse">Waiting for authorization…</span>
+          </div>
+          <div id="dc-success" style="display:none" class="alert alert-success mt-3">
+            <strong>App created!</strong> Client ID: <code id="dc-client-id" style="font-family:monospace;font-size:12px;"></code>
+            <br><button class="btn-galaxy-sm mt-3" onclick="useAutoClientId()">Continue →</button>
+          </div>
+          <div id="dc-error" style="display:none" class="alert alert-danger mt-3"></div>
         </div>
       </div>
-      <div class="setup-step">
-        <div class="setup-step-num">5</div>
-        <div>
-          <h5>Grant Admin Consent</h5>
-          <p>Still on the <span class="path-pill">API permissions</span> page, click <strong>Grant admin consent for [your org]</strong> → <strong>Yes</strong>. Requires a Global Admin account.</p>
-        </div>
+
+      <!-- Manual Setup card -->
+      <div class="option-card">
+        <h3>Enter Client ID</h3>
+        <p>Already have an Azure App Registration? Paste your Client ID below.</p>
+        <label class="lbl" for="client-id-input">Application (Client) ID</label>
+        <input type="text" class="inp mb-3" id="client-id-input"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" maxlength="36">
+        <button class="btn-outline-galaxy" onclick="useManualClientId()">Use This Client ID</button>
       </div>
-      <div class="setup-step">
-        <div class="setup-step-num">6</div>
-        <div>
-          <h5>Add a Redirect URI</h5>
-          <p>Go to <span class="path-pill">Authentication</span> → <strong>Add a platform</strong> → <strong>Single-page application (SPA)</strong>.<br>
-          Set the Redirect URI to: <span class="kbd" id="redirect-uri-display">loading…</span></p>
+
+    </div>
+
+    <!-- Sign-in area -->
+    <div id="signin-area">
+      <div class="section-label">Access Level</div>
+      <div class="access-toggle mb-4">
+        <button id="toggle-read" class="active" onclick="setAccessMode(false)">👁 Read Only</button>
+        <button id="toggle-write" onclick="setAccessMode(true)">✏️ Read + Write</button>
+      </div>
+      <button class="btn-galaxy" id="signin-btn" onclick="signIn()" style="font-size:15px;padding:12px 28px;">
+        <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+          <path d="M10 0H0v10h10V0z" fill="#F25022"/>
+          <path d="M21 0H11v10h10V0z" fill="#7FBA00"/>
+          <path d="M10 11H0v10h10V11z" fill="#00A4EF"/>
+          <path d="M21 11H11v10h10V11z" fill="#FFB900"/>
+        </svg>
+        Sign In with Microsoft 365
+      </button>
+
+      <div id="connected-status">
+        <div class="connected-row mt-3">
+          <span class="status-dot"></span>
+          <strong id="auth-user-label" style="font-size:14px;color:#fff"></strong>
+          <span id="auth-access-badge" class="badge"></span>
         </div>
+        <p style="font-size:13px;color:var(--muted);margin:6px 0 0">
+          Connected to <code id="auth-tenant" style="font-size:12px;color:var(--teal)"></code>.
+          Continue to Step 2 to configure your scan.
+        </p>
       </div>
     </div>
 
-    <hr class="divider">
-    <p class="mb-0" style="font-size:13px;color:var(--muted)"><i class="bi bi-shield-check me-1"></i>FileForge never persists your access token. Auth is handled in the browser by Microsoft's MSAL library.</p>
   </div>
 </section>
 
 
-<!-- ════════════════════════════════
-     2 · Connect
-════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════
+     2 · Configure
+═══════════════════════════════════════════ -->
 <section class="step-section" id="s2">
   <div class="step-header">
     <div class="step-badge" id="badge-2">2</div>
     <div>
-      <h2>Connect to Microsoft 365</h2>
-      <p>Enter your Client ID from Step 1 and sign in with your Microsoft 365 account.</p>
-    </div>
-  </div>
-  <div class="step-body">
-
-    <div id="connect-form">
-      <div class="mb-3">
-        <label for="client-id-input">Application (Client) ID</label>
-        <input type="text" class="form-control" id="client-id-input" style="max-width:380px"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" maxlength="36">
-        <div class="form-text">From the Overview page of your Azure App Registration (Step 1, item 3).</div>
-      </div>
-      <div class="signin-options">
-        <button class="btn-outline-custom" onclick="signIn(false)"><i class="bi bi-eye"></i>Sign in — Scan Only</button>
-        <button class="btn-primary-custom" onclick="signIn(true)"><i class="bi bi-pencil-square"></i>Sign in — Scan &amp; Rename</button>
-      </div>
-    </div>
-
-    <div id="connected-status" style="display:none">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <span class="status-dot connected"></span>
-        <strong id="auth-user-label" style="font-size:14px"></strong>
-        <span id="auth-access-badge"></span>
-      </div>
-      <p style="font-size:13px;color:var(--muted);margin:0">
-        Connected to <span id="auth-tenant" style="font-family:monospace"></span>. Continue to Step 3 to configure your scan.
-      </p>
-    </div>
-
-  </div>
-</section>
-
-
-<!-- ════════════════════════════════
-     3 · Configure
-════════════════════════════════ -->
-<section class="step-section" id="s3">
-  <div class="step-header">
-    <div class="step-badge" id="badge-3">3</div>
-    <div>
-      <h2>Configure Your Scan</h2>
+      <h2>Configure</h2>
       <p>Set your SharePoint site, document library, and naming rules.</p>
     </div>
   </div>
   <div class="step-body">
 
-    <div class="config-grid mb-3">
+    <div class="config-grid mb-4">
       <div>
-        <label for="site-url">SharePoint Site URL</label>
-        <input type="url" class="form-control" id="site-url" placeholder="https://yourorg.sharepoint.com/sites/YourSite">
-        <div class="form-text">Full URL of the SharePoint site to scan.</div>
+        <label class="lbl" for="site-url">SharePoint Site URL</label>
+        <input type="url" class="inp" id="site-url" placeholder="https://contoso.sharepoint.com/sites/Finance">
       </div>
       <div>
-        <label for="library-name">Document Library Name</label>
-        <input type="text" class="form-control" id="library-name" placeholder="Documents" value="Documents">
-        <div class="form-text">Display name of the library as shown in SharePoint.</div>
+        <label class="lbl" for="library-name">Document Library</label>
+        <input type="text" class="inp" id="library-name" value="Documents" placeholder="Documents">
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="lbl" for="exclude-folders">Exclude Folders <span style="font-weight:400;color:var(--muted)">(comma-separated)</span></label>
+        <input type="text" class="inp" id="exclude-folders" placeholder="Archive, Research, Old Files">
       </div>
     </div>
 
-    <div class="mb-1">
-      <label for="exclude-folders">Exclude Folders <span style="font-weight:400;color:var(--muted)">(optional, comma-separated)</span></label>
-      <input type="text" class="form-control" id="exclude-folders" placeholder="Archive, Templates, Old Files">
-      <div class="form-text">Top-level folder names to skip during the scan.</div>
-    </div>
-
-    <!-- Naming rules -->
-    <div class="rules-panel mt-4">
+    <!-- Naming Rules collapsible -->
+    <div class="rules-panel">
       <div class="rules-toggle" onclick="toggleRules()">
-        <span><i class="bi bi-sliders me-2"></i>Naming Rules <span id="rules-summary" style="font-weight:400;color:var(--muted);font-size:12px">— 30 char target, all on</span></span>
-        <i class="bi bi-chevron-down" id="rules-chev"></i>
+        <span>⚙️ Naming Rules</span>
+        <span id="rules-arrow">▼</span>
       </div>
       <div class="rules-body" id="rules-body">
 
-        <div class="mb-3">
-          <label>Character Target <span style="font-weight:400;color:var(--muted)">(names over this will have filler words removed)</span></label>
-          <div class="len-row">
-            <input type="range" min="15" max="60" value="30" id="target-len" oninput="updateLenLabel()">
-            <span class="len-val" id="len-label">30</span>
-            <span style="font-size:12px;color:var(--muted)">chars</span>
+        <div class="rule-row mb-3">
+          <label for="target-len" class="lbl" style="margin:0;flex:1">Target Length</label>
+          <div class="len-row" style="flex:2">
+            <input type="range" id="target-len" min="20" max="60" value="30" oninput="document.getElementById('len-val').textContent=this.value">
+            <span class="len-val" id="len-val">30</span>
           </div>
         </div>
 
         <hr class="divider">
 
-        <div class="rule-row"><input type="checkbox" class="form-check-input" id="r-titlecase" checked><label for="r-titlecase">Title Case — capitalize each word, lowercase articles (a, an, the, of, in…)</label></div>
-        <div class="rule-row"><input type="checkbox" class="form-check-input" id="r-fillers" checked><label for="r-fillers">Remove Filler Words — strips short connecting words when name exceeds target length</label></div>
-        <div class="rule-row"><input type="checkbox" class="form-check-input" id="r-camel" checked><label for="r-camel">Split CamelCase — <span style="font-family:monospace">ProjectStatus</span> → <span style="font-family:monospace">Project Status</span></label></div>
-        <div class="rule-row mb-0"><input type="checkbox" class="form-check-input" id="r-dates" checked><label for="r-dates">Normalize Dates — extract dates and move to end in MM.DD.YY format</label></div>
+        <div class="rule-row">
+          <label class="toggle-switch"><input type="checkbox" id="r-titlecase" checked><span class="toggle-slider"></span></label>
+          <label for="r-titlecase">Title Case with spaces (no underscores)</label>
+        </div>
+        <div class="rule-row">
+          <label class="toggle-switch"><input type="checkbox" id="r-fillers" checked><span class="toggle-slider"></span></label>
+          <label for="r-fillers">Remove filler words (Final, Copy, Draft)</label>
+        </div>
+        <div class="rule-row">
+          <label class="toggle-switch"><input type="checkbox" id="r-camel" checked><span class="toggle-slider"></span></label>
+          <label for="r-camel">Split CamelCase words</label>
+        </div>
+        <div class="rule-row">
+          <label class="toggle-switch"><input type="checkbox" id="r-dates" checked><span class="toggle-slider"></span></label>
+          <label for="r-dates">Normalize dates → MM.DD.YY at end</label>
+        </div>
 
         <hr class="divider">
 
-        <div class="mb-3">
-          <label>Custom Acronyms <span style="font-weight:400;color:var(--muted)">(kept in ALL CAPS)</span></label>
-          <input type="text" class="form-control" id="custom-acronyms" placeholder="CRM, ERP, SKU" style="font-size:12px">
-          <div class="form-text">Comma-separated acronyms specific to your organization.</div>
-        </div>
+        <div class="section-label">Custom Abbreviations <span style="font-weight:400;text-transform:none;letter-spacing:0">(Original → Abbrev)</span></div>
+        <div class="custom-rows" id="abbrev-rows"></div>
+        <button class="add-row-btn" onclick="addAbbrevRow()">+ Add abbreviation</button>
 
-        <div class="mb-3">
-          <label>Word Abbreviations <span style="font-weight:400;color:var(--muted)">(Full Word → Short form)</span></label>
-          <div class="custom-rows" id="abbrev-rows"></div>
-          <button class="add-row-btn" onclick="addAbbrevRow()"><i class="bi bi-plus"></i> Add</button>
-        </div>
+        <hr class="divider">
 
-        <div>
-          <label>Organization Name Replacements</label>
-          <div class="custom-rows" id="org-rows"></div>
-          <button class="add-row-btn" onclick="addOrgRow()"><i class="bi bi-plus"></i> Add</button>
-        </div>
+        <div class="section-label">Org-Specific Replacements <span style="font-weight:400;text-transform:none;letter-spacing:0">(Original → Replacement)</span></div>
+        <div class="custom-rows" id="org-rows"></div>
+        <button class="add-row-btn" onclick="addOrgRow()">+ Add replacement</button>
 
       </div>
     </div>
 
-    <!-- Demo -->
-    <div style="margin-top:20px">
-      <p style="font-size:13px;font-weight:600;margin-bottom:4px">Example transformations</p>
-      <table class="demo-table">
-        <thead><tr><th>Original Filename</th><th></th><th>Suggested Name</th><th>Rule</th></tr></thead>
+    <hr class="divider">
+
+    <!-- Static example table -->
+    <div class="section-label" style="margin-bottom:10px">Example Transformations</div>
+    <div style="overflow-x:auto">
+      <table class="example-table">
+        <thead><tr><th>Original</th><th>→</th><th>Suggested</th><th>Rule Applied</th></tr></thead>
         <tbody>
-          <tr><td>Q1_Revenue_Report_Final.xlsx</td><td class="arrow">→</td><td class="after">Q1 Revenue Rpt</td><td style="font-size:11px;color:var(--muted)">"Final" stripped · abbreviation</td></tr>
-          <tr><td>BoardMeetingMinutes_2024.docx</td><td class="arrow">→</td><td class="after">Bd Mtg Minutes 2024</td><td style="font-size:11px;color:var(--muted)">Abbreviations applied</td></tr>
-          <tr><td>2024.01.15_BudgetReview.xlsx</td><td class="arrow">→</td><td class="after">Budget Review 01.15.24</td><td style="font-size:11px;color:var(--muted)">Date extracted &amp; moved to end</td></tr>
-          <tr><td>HR_PolicyUpdate_Draft(1).pdf</td><td class="arrow">→</td><td class="after">HR Policy Upd</td><td style="font-size:11px;color:var(--muted)">Duplicate marker removed</td></tr>
-          <tr><td>ProjectAlphaStatusUpdate.pptx</td><td class="arrow">→</td><td class="after">Project Alpha Status Upd</td><td style="font-size:11px;color:var(--muted)">CamelCase split</td></tr>
-          <tr class="temp"><td>~$WorkInProgress.docx</td><td class="arrow">→</td><td class="after">DELETE - Temp File</td><td style="font-size:11px;color:var(--muted)">Office lock file detected</td></tr>
+          <tr><td class="orig">Q1_Revenue_Report_Final.xlsx</td><td>→</td><td class="sug">Q1 Revenue Rpt</td><td class="rule-note">Abbreviation + "Final" removed</td></tr>
+          <tr><td class="orig">BoardMeetingMinutes_2024.docx</td><td>→</td><td class="sug">Bd Mtg Minutes 2024</td><td class="rule-note">Abbreviations applied</td></tr>
+          <tr><td class="orig">2024.01.15_BudgetReview.xlsx</td><td>→</td><td class="sug">Budget Review 01.15.24</td><td class="rule-note">Date moved to end</td></tr>
+          <tr><td class="orig">ProjectAlphaStatusUpdate.pptx</td><td>→</td><td class="sug">Project Alpha Status</td><td class="rule-note">CamelCase split</td></tr>
+          <tr><td class="orig">~$WorkInProgress.docx</td><td>→</td><td class="sug temp">DELETE - Temp File</td><td class="rule-note">Lock file detected</td></tr>
         </tbody>
       </table>
     </div>
@@ -486,144 +718,142 @@
 </section>
 
 
-<!-- ════════════════════════════════
-     4 · Scan
-════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════
+     3 · Scan
+═══════════════════════════════════════════ -->
+<section class="step-section" id="s3">
+  <div class="step-header">
+    <div class="step-badge" id="badge-3">3</div>
+    <div>
+      <h2>Scan</h2>
+      <p>Discover files in your SharePoint library and generate name suggestions.</p>
+    </div>
+  </div>
+  <div class="step-body">
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn-galaxy" id="scan-btn" onclick="startScan()">🔍 Start Scan</button>
+      <button class="btn-ghost" id="cancel-scan-btn" style="display:none" onclick="cancelScan()">Cancel</button>
+    </div>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px" id="progress-label"></div>
+    </div>
+
+    <pre id="scan-log"></pre>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     4 · Review
+═══════════════════════════════════════════ -->
 <section class="step-section" id="s4">
   <div class="step-header">
     <div class="step-badge" id="badge-4">4</div>
     <div>
-      <h2>Scan Your Library</h2>
-      <p>FileForge walks your SharePoint library and generates a suggested name for every file.</p>
+      <h2>Review</h2>
+      <p>Inspect suggestions, edit names inline, and approve files for renaming.</p>
     </div>
   </div>
   <div class="step-body">
 
-    <div class="mb-3" style="display:flex;gap:10px;align-items:center">
-      <button class="btn-primary-custom" id="btn-scan" onclick="startScan()"><i class="bi bi-search"></i>Start Scan</button>
-      <button class="btn-outline-custom" id="btn-scan-cancel" style="display:none" onclick="cancelScan()">Cancel</button>
-    </div>
-
-    <div class="progress-wrap" id="scan-progress-wrap">
-      <div class="progress-bar-track"><div class="progress-bar-fill" id="scan-fill" style="width:0%"></div></div>
-      <p style="font-size:12px;color:var(--muted);margin:4px 0 8px" id="scan-progress-lbl"></p>
-    </div>
-
-    <div id="scan-log"></div>
-
-    <div id="scan-done-msg" style="display:none" class="alert-success mt-3">
-      <i class="bi bi-check-circle me-2"></i><span id="scan-done-txt"></span> — scroll down to review.
-    </div>
-    <div id="scan-err-msg" style="display:none" class="alert-danger mt-3">
-      <i class="bi bi-exclamation-triangle me-2"></i><span id="scan-err-txt"></span>
-    </div>
-
-  </div>
-</section>
-
-
-<!-- ════════════════════════════════
-     5 · Review
-════════════════════════════════ -->
-<section class="step-section" id="s5">
-  <div class="step-header">
-    <div class="step-badge" id="badge-5">5</div>
-    <div>
-      <h2>Review &amp; Approve Names</h2>
-      <p>Inspect suggested names, edit anything that looks off, then approve what's ready.</p>
-    </div>
-  </div>
-  <div class="step-body">
-
-    <div class="stats-row">
-      <div class="stat-card"><div class="val" id="st-total">—</div><div class="lbl">Total Files</div></div>
+    <!-- Stats -->
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card"><div class="val" id="st-total">—</div><div class="lbl">Total</div></div>
       <div class="stat-card s-success"><div class="val" id="st-approved">—</div><div class="lbl">Approved</div></div>
-      <div class="stat-card s-warning"><div class="val" id="st-over">—</div><div class="lbl">Over Target</div></div>
+      <div class="stat-card s-warning"><div class="val" id="st-over30">—</div><div class="lbl">Over Target</div></div>
       <div class="stat-card s-danger"><div class="val" id="st-temp">—</div><div class="lbl">Temp Files</div></div>
+      <div class="stat-card"><div class="val" id="st-renamed">—</div><div class="lbl">Renamed</div></div>
     </div>
 
+    <!-- Filter bar -->
     <div class="review-bar">
-      <input type="text" class="form-control" id="search-in" placeholder="Search files…" oninput="debounce()">
-      <select class="form-select" id="folder-filter" onchange="applyFilters()"><option value="">All folders</option></select>
-      <label class="filter-check"><input type="checkbox" id="f-over30" onchange="applyFilters()"> Over target</label>
-      <label class="filter-check"><input type="checkbox" id="f-unapproved" onchange="applyFilters()"> Unapproved only</label>
+      <input type="search" class="inp inp-sm" id="search-input" placeholder="🔍  Search…" oninput="renderTable()">
+      <select class="inp inp-sm" id="filter-approved" onchange="renderTable()" style="max-width:160px">
+        <option value="">All files</option>
+        <option value="yes">Approved</option>
+        <option value="no">Unapproved</option>
+      </select>
+      <select class="inp inp-sm" id="filter-over" onchange="renderTable()" style="max-width:160px">
+        <option value="">Any length</option>
+        <option value="yes">Over target</option>
+        <option value="no">Within target</option>
+      </select>
     </div>
 
+    <!-- Sample data banner -->
+    <div id="sample-banner">
+      ⚠️ Sample data — run a scan to see your files
+    </div>
+
+    <!-- Spreadsheet -->
     <div class="sheet-wrap">
       <div class="sheet-scroll">
-        <table class="sheet">
+        <table class="sheet" id="file-table">
           <thead>
             <tr>
               <th class="col-n">#</th>
-              <th class="col-folder" onclick="sortBy('folder')">Folder <i class="bi bi-chevron-expand" style="font-size:9px"></i></th>
-              <th class="col-orig" onclick="sortBy('orig')">Original Name <i class="bi bi-chevron-expand" style="font-size:9px"></i></th>
-              <th class="col-sug" onclick="sortBy('sug')">Suggested Name <i class="bi bi-chevron-expand" style="font-size:9px"></i></th>
-              <th class="col-chars" onclick="sortBy('chars')">Chars <i class="bi bi-chevron-expand" style="font-size:9px"></i></th>
-              <th class="col-ok"><input type="checkbox" class="approve-cb" id="cb-all" title="Toggle all visible" onchange="toggleAll(this.checked)"></th>
+              <th class="col-folder" onclick="sortBy('folder_path')">Folder ↕</th>
+              <th class="col-orig" onclick="sortBy('original_name')">Original Name ↕</th>
+              <th class="col-ext">Ext</th>
+              <th class="col-sug" onclick="sortBy('suggested_name')">Suggested Name ↕</th>
+              <th class="col-chars">Chars</th>
+              <th class="col-ok">✓</th>
             </tr>
           </thead>
-          <tbody id="sheet-body">
-            <tr><td colspan="6" class="empty-msg">Run a scan to see files here.</td></tr>
-          </tbody>
+          <tbody id="table-body"></tbody>
         </table>
       </div>
       <div class="sheet-foot">
-        <span id="sheet-count">No data</span>
+        <span id="page-info">—</span>
         <div class="page-btns" id="page-btns"></div>
       </div>
     </div>
 
+    <!-- Bulk actions -->
     <div class="bulk-bar">
-      <button class="btn-success-custom" onclick="approveVisible()"><i class="bi bi-check-all"></i>Approve visible</button>
-      <button class="btn-outline-custom" onclick="exportCsv()"><i class="bi bi-download"></i>Export CSV</button>
-      <button class="claude-btn" onclick="copyForClaude()"><i class="bi bi-clipboard"></i>Copy for Claude</button>
-      <span id="copy-done" style="font-size:12px;color:var(--success);display:none"><i class="bi bi-check-circle me-1"></i>Copied!</span>
+      <button class="btn-success" onclick="approveVisible()">✔ Approve Visible</button>
+      <button class="btn-ghost" onclick="exportCsv()">📄 Export CSV</button>
+      <button class="btn-ghost" onclick="openInExcel()">📊 Open in Excel</button>
+      <button class="btn-ghost" style="background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.3);color:var(--purple)" onclick="copyForClaude()">🤖 Copy for Claude</button>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-top:6px">
-      <i class="bi bi-stars me-1" style="color:#7c3aed"></i>
-      <strong>Copy for Claude</strong> formats unapproved files as a prompt you can paste directly into <a href="https://claude.ai" target="_blank" rel="noopener">claude.ai</a> to get AI name suggestions.
-    </p>
 
   </div>
 </section>
 
 
-<!-- ════════════════════════════════
-     6 · Rename
-════════════════════════════════ -->
-<section class="step-section" id="s6">
+<!-- ═══════════════════════════════════════════
+     5 · Rename
+═══════════════════════════════════════════ -->
+<section class="step-section" id="s5">
   <div class="step-header">
-    <div class="step-badge" id="badge-6">6</div>
+    <div class="step-badge" id="badge-5">5</div>
     <div>
-      <h2>Apply Renames</h2>
-      <p>Select a folder and push approved name changes to SharePoint.</p>
+      <h2>Rename</h2>
+      <p>Apply approved renames to SharePoint — select a folder to begin.</p>
     </div>
   </div>
   <div class="step-body">
 
-    <div id="no-write-warning" class="alert-warning mb-3" style="display:none">
-      <i class="bi bi-lock me-2"></i>
-      You signed in with read-only access. Sign out and sign back in with <strong>Scan &amp; Rename</strong> to apply changes.
+    <div id="rename-write-warn" class="alert alert-warning mb-4" style="display:none">
+      ⚠️ Write access required. Sign in again with Read + Write to apply renames.
     </div>
-
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
-      Only <strong>approved</strong> files with a different suggested name are renamed. SharePoint version history preserves the original name.
-    </p>
 
     <div class="folder-list" id="folder-list">
       <div class="empty-msg">Run a scan first to see folders here.</div>
     </div>
 
-    <div style="display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap">
-      <button class="btn-danger-custom" id="btn-rename" onclick="startRename()" disabled>
-        <i class="bi bi-pencil-square"></i>Apply Renames
+    <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center" id="rename-actions" style="display:none">
+      <button class="btn-danger" id="rename-btn" onclick="applyRename()" disabled>
+        ⚠️ Apply Renames
       </button>
-      <span id="sel-folder-lbl" style="font-size:13px;color:var(--muted)"></span>
+      <span style="font-size:12px;color:var(--muted)" id="rename-folder-label"></span>
     </div>
 
     <div class="rename-log-wrap" id="rename-log-wrap">
-      <div class="progress-bar-track mt-3"><div class="progress-bar-fill" id="rename-fill" style="width:0%"></div></div>
-      <p style="font-size:12px;color:var(--muted);margin:4px 0 8px" id="rename-progress-lbl"></p>
       <div class="rename-log" id="rename-log"></div>
     </div>
 
@@ -632,536 +862,875 @@
 
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ── State ──────────────────────────────────────────────────────
-let sessionId = localStorage.getItem('ff_session') || null;
+// ─────────────────────────────────────────────────────────────
+// Stars canvas animation
+// ─────────────────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('stars-canvas');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function initStars() {
+    stars = [];
+    for (let i = 0; i < 180; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.4 + 0.2,
+        o: Math.random() * 0.6 + 0.2,
+        s: Math.random() * 0.003 + 0.001,
+        d: Math.random() > 0.5 ? 1 : -1,
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(s => {
+      s.o += s.s * s.d;
+      if (s.o > 0.8 || s.o < 0.1) s.d *= -1;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.o})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  initStars();
+  draw();
+  window.addEventListener('resize', () => { resize(); initStars(); });
+})();
+
+// ─────────────────────────────────────────────────────────────
+// Toast
+// ─────────────────────────────────────────────────────────────
+function toast(msg, type = '') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast-item';
+  el.textContent = msg;
+  if (type === 'error') el.style.borderColor = 'rgba(248,113,113,.4)';
+  if (type === 'success') el.style.borderColor = 'rgba(74,222,128,.4)';
+  wrap.appendChild(el);
+  setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Copy helper
+// ─────────────────────────────────────────────────────────────
+function copyText(t) {
+  navigator.clipboard.writeText(t).then(() => toast('Copied!', 'success')).catch(() => toast('Copy failed', 'error'));
+}
+
+// ─────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────
+let sessionId = null;
 let writeAccess = false;
-let allFiles = [], filteredFiles = [];
-let page = 0;
-const PAGE = 100;
-let sortKey = null, sortAsc = true;
+let currentClientId = null;
+let msalApp = null;
+
+const EXAMPLE_ROWS = [
+  {item_id:'ex1',  original_name:'Q1_Revenue_Report_Final',      extension:'.xlsx', suggested_name:'Q1 Revenue Rpt',               folder_path:'/Finance/2024',    over30:false, approved:false, renamed:false},
+  {item_id:'ex2',  original_name:'BoardMeetingMinutes_2024',      extension:'.docx', suggested_name:'Bd Mtg Minutes 2024',           folder_path:'/Governance',      over30:false, approved:false, renamed:false},
+  {item_id:'ex3',  original_name:'2024.01.15_BudgetReview_v2',   extension:'.xlsx', suggested_name:'Budget Review 01.15.24',        folder_path:'/Finance/2024',    over30:false, approved:false, renamed:false},
+  {item_id:'ex4',  original_name:'HR_PolicyUpdate_Draft',         extension:'.pdf',  suggested_name:'HR Policy Upd',                folder_path:'/HR/Policies',     over30:false, approved:false, renamed:false},
+  {item_id:'ex5',  original_name:'ProjectAlphaStatusUpdate_Q1',  extension:'.pptx', suggested_name:'Project Alpha Status Upd Q1',  folder_path:'/Projects/Alpha',  over30:true,  approved:false, renamed:false},
+  {item_id:'ex6',  original_name:'AnnualPerformanceReview_FY24', extension:'.docx', suggested_name:'Annual Perf Review FY24',       folder_path:'/HR/Templates',    over30:false, approved:false, renamed:false},
+  {item_id:'ex7',  original_name:'VendorContract_ServiceAgmt',   extension:'.pdf',  suggested_name:'Vendor Cntrct Svc Agmt',       folder_path:'/Legal/Contracts', over30:true,  approved:false, renamed:false},
+  {item_id:'ex8',  original_name:'~$WorkInProgress',             extension:'.docx', suggested_name:'DELETE - Temp File',           folder_path:'/Projects',        over30:false, approved:false, renamed:false},
+  {item_id:'ex9',  original_name:'MonthlyOperationsReport_Feb',  extension:'.xlsx', suggested_name:'Monthly Ops Rpt Feb',          folder_path:'/Operations',      over30:false, approved:false, renamed:false},
+  {item_id:'ex10', original_name:'ITInfrastructureUpgrade_v3',   extension:'.docx', suggested_name:'IT Infra Upgrade',             folder_path:'/IT/Projects',     over30:false, approved:false, renamed:false},
+];
+let isExampleData = true;
+let allFiles = [];
+let filteredFiles = [];
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let sortField = null;
+let sortAsc = true;
 let selectedFolder = null;
-let scanTimer = null, renameTimer = null;
-let debounceT = null;
+let scanPoller = null;
+let renamePoller = null;
+let dcPoller = null;
+let dcDeviceCode = null;
+let dcRedirectUri = null;
 
-document.getElementById('redirect-uri-display').textContent = window.location.origin;
+// ─────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  dcRedirectUri = window.location.origin + window.location.pathname.replace(/\/$/, '');
+  document.getElementById('redirect-uri-display') && (document.getElementById('redirect-uri-display').textContent = dcRedirectUri);
 
-// ── MSAL ───────────────────────────────────────────────────────
-function buildMsal() {
+  // Check for managed client ID from server
+  try {
+    const r = await fetch('/api/config');
+    const cfg = await r.json();
+    if (cfg.managed_client_id) {
+      document.getElementById('client-id-input').value = cfg.managed_client_id;
+    }
+  } catch(e) {}
+
+  renderTable();
+  setupScrollSpy();
+});
+
+// ─────────────────────────────────────────────────────────────
+// Auto Setup — Device Code
+// ─────────────────────────────────────────────────────────────
+async function startAutoSetup() {
+  document.getElementById('auto-setup-btn').disabled = true;
+  document.getElementById('device-code-panel').style.display = 'block';
+  document.getElementById('dc-success').style.display = 'none';
+  document.getElementById('dc-error').style.display = 'none';
+  document.getElementById('dc-status').style.display = 'flex';
+
+  try {
+    const r = await fetch('/api/setup/device-code', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({redirect_uri: dcRedirectUri})
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Failed to start device code flow');
+
+    dcDeviceCode = d.device_code;
+    document.getElementById('dc-code').textContent = d.user_code;
+    const urlEl = document.getElementById('dc-url');
+    urlEl.textContent = d.verification_uri;
+    urlEl.href = d.verification_uri;
+
+    // Start polling
+    const interval = (d.interval || 5) * 1000;
+    dcPoller = setInterval(pollDeviceCode, interval);
+  } catch(e) {
+    showDcError(e.message);
+    document.getElementById('auto-setup-btn').disabled = false;
+  }
+}
+
+async function pollDeviceCode() {
+  if (!dcDeviceCode) return;
+  try {
+    const r = await fetch('/api/setup/poll', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({device_code: dcDeviceCode, redirect_uri: dcRedirectUri})
+    });
+    const d = await r.json();
+
+    if (d.status === 'done') {
+      stopDcPoller();
+      document.getElementById('dc-status').style.display = 'none';
+      document.getElementById('dc-client-id').textContent = d.client_id;
+      document.getElementById('dc-success').style.display = 'block';
+    } else if (d.status === 'declined' || d.status === 'expired' || d.status === 'error') {
+      stopDcPoller();
+      showDcError(d.message || 'Authorization ' + d.status);
+      document.getElementById('auto-setup-btn').disabled = false;
+    }
+    // pending → keep polling
+  } catch(e) {
+    // network error, keep trying
+  }
+}
+
+function stopDcPoller() {
+  if (dcPoller) { clearInterval(dcPoller); dcPoller = null; }
+}
+
+function showDcError(msg) {
+  document.getElementById('dc-status').style.display = 'none';
+  const el = document.getElementById('dc-error');
+  el.textContent = '❌ ' + msg;
+  el.style.display = 'block';
+}
+
+function useAutoClientId() {
+  const cid = document.getElementById('dc-client-id').textContent.trim();
+  if (cid) {
+    document.getElementById('client-id-input').value = cid;
+    currentClientId = cid;
+    initMsal(cid);
+    showSigninArea();
+    toast('Client ID set — sign in below', 'success');
+  }
+}
+
+function useManualClientId() {
   const cid = document.getElementById('client-id-input').value.trim();
-  if (!cid) { toast('Enter your Client ID first.'); return null; }
-  if (!/^[0-9a-f\-]{36}$/i.test(cid)) { toast('Client ID must be a 36-character GUID.'); return null; }
-  localStorage.setItem('ff_cid', cid);
-  return new msal.PublicClientApplication({
-    auth: { clientId: cid, authority: 'https://login.microsoftonline.com/organizations', redirectUri: window.location.origin },
-    cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
+  if (!cid || cid.length < 30) { toast('Enter a valid Client ID (GUID)', 'error'); return; }
+  currentClientId = cid;
+  initMsal(cid);
+  showSigninArea();
+  toast('Client ID set — sign in below', 'success');
+}
+
+function showSigninArea() {
+  document.getElementById('signin-area').style.display = 'block';
+  document.getElementById('signin-area').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ─────────────────────────────────────────────────────────────
+// MSAL + Sign In
+// ─────────────────────────────────────────────────────────────
+function initMsal(clientId) {
+  msalApp = new msal.PublicClientApplication({
+    auth: {
+      clientId: clientId,
+      authority: 'https://login.microsoftonline.com/common',
+      redirectUri: dcRedirectUri,
+    },
+    cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
   });
 }
 
-async function signIn(needWrite) {
-  const app = buildMsal();
-  if (!app) return;
-  await app.initialize();
-  const scopes = needWrite
-    ? ['https://graph.microsoft.com/Sites.ReadWrite.All','https://graph.microsoft.com/Files.ReadWrite.All']
-    : ['https://graph.microsoft.com/Sites.Read.All','https://graph.microsoft.com/Files.Read.All'];
-  let result;
-  try { result = await app.acquireTokenPopup({ scopes }); }
-  catch(e) { if (e.errorCode !== 'user_cancelled') toast('Sign-in failed: ' + e.message, 'error'); return; }
+let wantsWrite = false;
+function setAccessMode(write) {
+  wantsWrite = write;
+  document.getElementById('toggle-read').classList.toggle('active', !write);
+  document.getElementById('toggle-write').classList.toggle('active', write);
+}
 
-  const resp = await api('POST', '/api/auth/session', { access_token: result.accessToken, write_access: needWrite }, false);
-  if (!resp) return;
-  sessionId = resp.session_id;
-  localStorage.setItem('ff_session', sessionId);
-  writeAccess = needWrite;
-  onConnected(resp.user, needWrite);
+async function signIn() {
+  if (!msalApp) {
+    const cid = document.getElementById('client-id-input').value.trim();
+    if (!cid || cid.length < 30) { toast('Enter or auto-create a Client ID first', 'error'); return; }
+    currentClientId = cid;
+    initMsal(cid);
+  }
+
+  const scopes = wantsWrite
+    ? ['https://graph.microsoft.com/Sites.ReadWrite.All', 'https://graph.microsoft.com/Files.ReadWrite.All']
+    : ['https://graph.microsoft.com/Sites.Read.All', 'https://graph.microsoft.com/Files.Read.All'];
+
+  try {
+    const result = await msalApp.loginPopup({ scopes });
+    const tokenResult = await msalApp.acquireTokenSilent({ scopes, account: result.account })
+      .catch(() => msalApp.acquireTokenPopup({ scopes, account: result.account }));
+
+    const resp = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ access_token: tokenResult.accessToken, write_access: wantsWrite })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Session error');
+
+    sessionId = data.session_id;
+    writeAccess = wantsWrite;
+    onAuthenticated(data.user);
+    toast('Connected to Microsoft 365', 'success');
+  } catch(e) {
+    if (e.errorCode !== 'user_cancelled') toast('Sign-in failed: ' + (e.message || e), 'error');
+  }
+}
+
+function onAuthenticated(user) {
+  document.getElementById('auth-user-label').textContent = user.name || user.email;
+  document.getElementById('auth-tenant').textContent = user.tenant;
+  const badge = document.getElementById('auth-access-badge');
+  badge.textContent = writeAccess ? 'Read + Write' : 'Read Only';
+  badge.className = 'badge ' + (writeAccess ? 'badge-write' : 'badge-read');
+  document.getElementById('connected-status').style.display = 'block';
+  document.getElementById('signin-btn').style.display = 'none';
+
+  // Nav
+  const userArea = document.getElementById('user-area');
+  userArea.style.display = 'flex';
+  document.getElementById('user-chip').textContent = user.email || user.name;
+
+  markStepDone(1);
 }
 
 async function signOut() {
-  if (sessionId) await api('DELETE', '/api/auth/session');
-  sessionId = null; localStorage.removeItem('ff_session');
+  if (sessionId) {
+    await fetch('/api/auth/session', { method: 'DELETE', headers: {'X-Session-Id': sessionId} }).catch(() => {});
+  }
+  sessionId = null;
   writeAccess = false;
-  document.getElementById('connect-form').style.display = '';
+  document.getElementById('user-area').style.display = 'none';
   document.getElementById('connected-status').style.display = 'none';
-  document.getElementById('sign-out-btn').style.display = 'none';
-  document.getElementById('user-chip').style.display = 'none';
-  navDone(2, false);
+  document.getElementById('signin-btn').style.display = '';
+  document.getElementById('signin-area').style.display = 'none';
+  if (msalApp) { try { await msalApp.logoutPopup(); } catch(e) {} }
+  toast('Signed out');
 }
 
-function onConnected(user, isWrite) {
-  document.getElementById('connect-form').style.display = 'none';
-  document.getElementById('connected-status').style.display = '';
-  document.getElementById('auth-user-label').textContent = user.name || user.email;
-  document.getElementById('auth-tenant').textContent = user.tenant || '';
-  document.getElementById('auth-access-badge').innerHTML = isWrite
-    ? '<span class="badge-write"><i class="bi bi-pencil me-1"></i>Read + Write</span>'
-    : '<span class="badge-read"><i class="bi bi-eye me-1"></i>Read Only</span>';
-  document.getElementById('user-name-chip').textContent = user.name || user.email;
-  document.getElementById('user-chip').style.display = '';
-  document.getElementById('sign-out-btn').style.display = '';
-  document.getElementById('no-write-warning').style.display = isWrite ? 'none' : '';
-  document.getElementById('btn-rename').disabled = !isWrite;
-  navDone(2, true);
-}
-
-// ── API helper ─────────────────────────────────────────────────
-async function api(method, path, body=null, useSession=true) {
-  const h = { 'Content-Type': 'application/json' };
-  if (useSession && sessionId) h['X-Session-Id'] = sessionId;
-  try {
-    const r = await fetch(path, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
-    if (r.status === 204) return {};
-    const d = await r.json();
-    if (!r.ok) { toast(d.detail || 'Server error', 'error'); return null; }
-    return d;
-  } catch(e) { toast('Network error', 'error'); return null; }
-}
-
-// ── Scan ───────────────────────────────────────────────────────
-async function startScan() {
-  if (!sessionId) { toast('Sign in first (Step 2).'); return; }
-  const siteUrl = document.getElementById('site-url').value.trim();
-  if (!siteUrl) { toast('Enter a Site URL in Step 3.'); return; }
-
-  const exclude = document.getElementById('exclude-folders').value
-    .split(',').map(s=>s.trim()).filter(Boolean);
-
-  document.getElementById('scan-log').style.display = 'block';
-  document.getElementById('scan-log').textContent = 'Starting…\n';
-  document.getElementById('scan-progress-wrap').style.display = '';
-  document.getElementById('scan-done-msg').style.display = 'none';
-  document.getElementById('scan-err-msg').style.display = 'none';
-  document.getElementById('btn-scan').disabled = true;
-  document.getElementById('btn-scan-cancel').style.display = '';
-  document.getElementById('scan-fill').style.width = '0%';
-
-  const ok = await api('POST', '/api/scan', {
-    site_url: siteUrl,
-    library: document.getElementById('library-name').value.trim() || 'Documents',
-    exclude_folders: exclude,
-    naming_rules: collectRules(),
-  });
-  if (!ok) { document.getElementById('btn-scan').disabled = false; document.getElementById('btn-scan-cancel').style.display = 'none'; return; }
-
-  scanTimer = setInterval(pollScan, 1500);
-}
-
-async function pollScan() {
-  const st = await api('GET', '/api/scan/status');
-  if (!st) return;
-  const log = document.getElementById('scan-log');
-  if (st.message) { log.textContent = st.message + '\n'; log.scrollTop = log.scrollHeight; }
-  if (st.progress) {
-    document.getElementById('scan-progress-lbl').textContent = `${st.progress.toLocaleString()} files found…`;
-    document.getElementById('scan-fill').style.width = st.total > 0 ? (st.progress/st.total*100)+'%' : '40%';
-  }
-  if (st.status === 'done') {
-    clearInterval(scanTimer);
-    document.getElementById('btn-scan').disabled = false;
-    document.getElementById('btn-scan-cancel').style.display = 'none';
-    document.getElementById('scan-fill').style.width = '100%';
-    document.getElementById('scan-done-txt').textContent = st.message;
-    document.getElementById('scan-done-msg').style.display = '';
-    navDone(4, true);
-    await Promise.all([loadFiles(), loadFolders(), refreshStats()]);
-  }
-  if (st.status === 'error') {
-    clearInterval(scanTimer);
-    document.getElementById('btn-scan').disabled = false;
-    document.getElementById('btn-scan-cancel').style.display = 'none';
-    document.getElementById('scan-err-txt').textContent = st.message;
-    document.getElementById('scan-err-msg').style.display = '';
-  }
-}
-
-function cancelScan() {
-  clearInterval(scanTimer);
-  document.getElementById('btn-scan').disabled = false;
-  document.getElementById('btn-scan-cancel').style.display = 'none';
-}
-
-// ── Files / Table ──────────────────────────────────────────────
-async function loadFiles() {
-  const d = await api('GET', '/api/files?limit=10000');
-  if (!d) return;
-  allFiles = d.rows;
-  applyFilters();
-}
-
-function applyFilters() {
-  let rows = [...allFiles];
-  const q = document.getElementById('search-in').value.toLowerCase();
-  const fol = document.getElementById('folder-filter').value;
-  const over = document.getElementById('f-over30').checked;
-  const unapp = document.getElementById('f-unapproved').checked;
-
-  if (q) rows = rows.filter(r => r.original_name.toLowerCase().includes(q) || r.suggested_name.toLowerCase().includes(q));
-  if (fol) rows = rows.filter(r => r.folder_path.startsWith('/'+fol));
-  if (over) rows = rows.filter(r => r.over30);
-  if (unapp) rows = rows.filter(r => !r.approved);
-
-  if (sortKey) rows.sort((a,b) => {
-    const av = sortKey==='folder' ? a.folder_path : sortKey==='orig' ? a.original_name : sortKey==='sug' ? a.suggested_name : a.suggested_name.length;
-    const bv = sortKey==='folder' ? b.folder_path : sortKey==='orig' ? b.original_name : sortKey==='sug' ? b.suggested_name : b.suggested_name.length;
-    return sortAsc ? (av>bv?1:av<bv?-1:0) : (av<bv?1:av>bv?-1:0);
-  });
-
-  filteredFiles = rows; page = 0; renderTable();
-}
-
-function debounce() { clearTimeout(debounceT); debounceT = setTimeout(applyFilters, 250); }
-
-function sortBy(k) { if (sortKey===k) sortAsc=!sortAsc; else {sortKey=k;sortAsc=true;} applyFilters(); }
-
-function renderTable() {
-  const tbody = document.getElementById('sheet-body');
-  const total = filteredFiles.length;
-  const pages = Math.max(1, Math.ceil(total/PAGE));
-  if (page >= pages) page = pages-1;
-  const slice = filteredFiles.slice(page*PAGE, (page+1)*PAGE);
-
-  if (!total) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No files match the current filters.</td></tr>';
-    document.getElementById('sheet-count').textContent = 'No results';
-    document.getElementById('page-btns').innerHTML = '';
-    return;
-  }
-
-  tbody.innerHTML = slice.map((r, i) => {
-    const n = page*PAGE + i + 1;
-    const chars = r.suggested_name.length;
-    const pill = r.over30 ? `<span class="chars-warn">${chars}</span>` : `<span class="chars-ok">${chars}</span>`;
-    const isTemp = r.suggested_name === 'DELETE - Temp File';
-    const cls = isTemp ? 'row-temp' : r.approved ? 'row-approved' : '';
-    const folder = r.folder_path.replace(/^\//,'').split('/').slice(0,2).join('/') || '/';
-    return `<tr class="${cls}" data-id="${r.item_id}">
-      <td class="col-n">${n}</td>
-      <td class="col-folder" title="${r.folder_path}">${escHtml(folder)}</td>
-      <td class="col-orig" title="${escHtml(r.original_name+r.extension)}">${escHtml(r.original_name)}</td>
-      <td class="col-sug">
-        <div class="name-cell">
-          <span class="name-text" title="${escHtml(r.suggested_name)}">${escHtml(r.suggested_name)}</span>
-          <button class="edit-btn" onclick="editCell('${r.item_id}')" title="Edit"><i class="bi bi-pencil"></i></button>
-        </div>
-      </td>
-      <td class="col-chars">${pill}</td>
-      <td class="col-ok"><input type="checkbox" class="approve-cb" ${r.approved?'checked':''} onchange="toggleOne('${r.item_id}',this.checked)"></td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('sheet-count').textContent = `${total.toLocaleString()} file${total!==1?'s':''} · page ${page+1} of ${pages}`;
-
-  let pb = '';
-  if (page > 0) pb += `<button class="page-btn" onclick="goPage(${page-1})">‹</button>`;
-  for (let p = Math.max(0,page-2); p <= Math.min(pages-1,page+2); p++)
-    pb += `<button class="page-btn${p===page?' cur':''}" onclick="goPage(${p})">${p+1}</button>`;
-  if (page < pages-1) pb += `<button class="page-btn" onclick="goPage(${page+1})">›</button>`;
-  document.getElementById('page-btns').innerHTML = pb;
-}
-
-function goPage(p) { page = p; renderTable(); }
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function editCell(id) {
-  const tr = document.querySelector(`tr[data-id="${id}"]`);
-  if (!tr) return;
-  const cell = tr.querySelector('.name-cell');
-  const span = cell.querySelector('.name-text');
-  const orig = span.textContent;
-  const inp = document.createElement('input');
-  inp.className = 'name-edit-input'; inp.value = orig;
-  cell.replaceChild(inp, span); inp.focus(); inp.select();
-  async function save() {
-    const v = inp.value.trim();
-    if (!v || v === orig) { cell.replaceChild(span, inp); return; }
-    const ok = await api('PATCH', `/api/files/${id}`, { suggested_name: v });
-    if (ok) { const f = allFiles.find(x=>x.item_id===id); if(f){f.suggested_name=v;f.over30=v.length>30;} applyFilters(); refreshStats(); }
-    else cell.replaceChild(span, inp);
-  }
-  inp.addEventListener('blur', save);
-  inp.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();inp.blur();} if(e.key==='Escape') cell.replaceChild(span, inp); });
-}
-
-async function toggleOne(id, approved) {
-  const ok = await api('POST', '/api/files/approve', { item_ids:[id], approved });
-  if (ok) { const f=allFiles.find(x=>x.item_id===id); if(f) f.approved=approved; applyFilters(); refreshStats(); }
-}
-
-function toggleAll(checked) {
-  const ids = filteredFiles.slice(page*PAGE,(page+1)*PAGE).map(f=>f.item_id);
-  if (!ids.length) return;
-  api('POST','/api/files/approve',{item_ids:ids,approved:checked}).then(ok=>{
-    if (ok) { ids.forEach(id=>{const f=allFiles.find(x=>x.item_id===id);if(f)f.approved=checked;}); applyFilters(); refreshStats(); }
-  });
-}
-
-function approveVisible() {
-  const ids = filteredFiles.map(f=>f.item_id);
-  if (!ids.length) return;
-  api('POST','/api/files/approve',{item_ids:ids,approved:true}).then(ok=>{
-    if (ok) { ids.forEach(id=>{const f=allFiles.find(x=>x.item_id===id);if(f)f.approved=true;}); applyFilters(); refreshStats(); }
-  });
-}
-
-async function refreshStats() {
-  const s = await api('GET','/api/files/stats');
-  if (!s) return;
-  document.getElementById('st-total').textContent = s.total.toLocaleString();
-  document.getElementById('st-approved').textContent = s.approved.toLocaleString();
-  document.getElementById('st-over').textContent = s.over30.toLocaleString();
-  document.getElementById('st-temp').textContent = s.temp_files.toLocaleString();
-}
-
-async function loadFolders() {
-  const d = await api('GET','/api/files/folders');
-  if (!d) return;
-
-  document.getElementById('folder-filter').innerHTML =
-    '<option value="">All folders</option>' +
-    d.map(f=>`<option value="${escHtml(f.top_folder)}">${escHtml(f.top_folder)} (${f.file_count})</option>`).join('');
-
-  document.getElementById('folder-list').innerHTML = d.length
-    ? d.map(f => {
-        const pct = f.file_count > 0 ? Math.round(f.approved_count/f.file_count*100) : 0;
-        return `<div class="folder-card" onclick="selectFolder('${escHtml(f.top_folder)}',this)">
-          <i class="bi bi-folder2 fc-icon"></i>
-          <div style="flex:1">
-            <div class="fc-name">${escHtml(f.top_folder)}</div>
-            <div class="fc-bar"><div class="fc-fill" style="width:${pct}%"></div></div>
-            <div class="fc-meta">${f.approved_count} / ${f.file_count} approved (${pct}%)</div>
-          </div>
-        </div>`;
-      }).join('')
-    : '<div class="empty-msg">No folders found.</div>';
-}
-
-// ── CSV export ─────────────────────────────────────────────────
-function exportCsv() {
-  if (!filteredFiles.length) { toast('No files to export.'); return; }
-  const hdr = ['#','Folder','Original Name','Extension','Suggested Name','Chars','Approved','Renamed'];
-  const rows = filteredFiles.map((r,i)=>[i+1,r.folder_path,r.original_name,r.extension,r.suggested_name,r.suggested_name.length,r.approved,r.renamed]);
-  const csv = [hdr,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'fileforge_names.csv'});
-  a.click(); URL.revokeObjectURL(a.href);
-}
-
-// ── Copy for Claude ────────────────────────────────────────────
-async function copyForClaude() {
-  const unapproved = allFiles.filter(f=>!f.approved && f.suggested_name!=='DELETE - Temp File');
-  if (!unapproved.length) { toast('All files are already approved.'); return; }
-
-  const rows = unapproved.slice(0,200);
-  const table = rows.map((r,i)=>{
-    const folder = r.folder_path.replace(/^\//,'').split('/').slice(0,2).join('/') || '/';
-    return `| ${i+1} | ${folder} | ${r.original_name}${r.extension} | ${r.suggested_name} | ${r.suggested_name.length} |`;
-  }).join('\n');
-
-  const note = unapproved.length > 200
-    ? `\n> Showing first 200 of ${unapproved.length} unapproved files. Export CSV for the full list.\n`
-    : '';
-
-  const prompt = `I'm organizing files in a SharePoint document library and need help reviewing AI-generated name suggestions.
-
-**Rules already applied:**
-- Title Case with spaces (no underscores or hyphens)
-- Abbreviations: Report→Rpt, Meeting→Mtg, Management→Mgmt, Document→Doc, etc.
-- Dates moved to end in MM.DD.YY format
-- Duplicate markers and "Final" removed
-- Target: 30 characters or fewer
-
-**Your task:** Review the suggestions below. For any that could be clearer, shorter, or more consistent, provide a better alternative.
-
-Respond in this format for each file you'd change:
-\`File # | Your suggestion | Brief reason\`
-${note}
-| # | Folder | Original Filename | Current Suggestion | Chars |
-|---|--------|------------------|--------------------|-------|
-${table}
-`;
-
-  try {
-    await navigator.clipboard.writeText(prompt);
-    const el = document.getElementById('copy-done');
-    el.style.display = ''; setTimeout(()=>el.style.display='none', 3000);
-    toast(`Copied prompt for ${rows.length} file${rows.length!==1?'s':''}.`, 'success');
-  } catch { toast('Clipboard write failed — try again.', 'error'); }
-}
-
-// ── Rename ─────────────────────────────────────────────────────
-function selectFolder(name, el) {
-  document.querySelectorAll('.folder-card').forEach(c=>c.classList.remove('sel'));
-  el.classList.add('sel');
-  selectedFolder = name;
-  document.getElementById('btn-rename').disabled = !writeAccess;
-  document.getElementById('sel-folder-lbl').textContent = `Selected: ${name}`;
-}
-
-async function startRename() {
-  if (!selectedFolder) { toast('Select a folder first.'); return; }
-  if (!writeAccess) { toast('Sign in with Read + Write access to rename.'); return; }
-  if (!confirm(`Apply approved renames in "${selectedFolder}"?\n\nSharePoint version history will preserve the original names.`)) return;
-
-  document.getElementById('rename-log-wrap').style.display = '';
-  document.getElementById('btn-rename').disabled = true;
-  document.getElementById('rename-log').innerHTML = '';
-  document.getElementById('rename-fill').style.width = '0%';
-
-  const ok = await api('POST','/api/rename',{folder:selectedFolder});
-  if (!ok) { document.getElementById('btn-rename').disabled = false; return; }
-  renameTimer = setInterval(pollRename, 1500);
-}
-
-async function pollRename() {
-  const st = await api('GET','/api/rename/status');
-  if (!st) return;
-  document.getElementById('rename-progress-lbl').textContent = st.message || '';
-  if (st.total > 0) document.getElementById('rename-fill').style.width = (st.done/st.total*100)+'%';
-  const log = document.getElementById('rename-log');
-  if (st.message) { log.innerHTML += `<span class="${st.errors>0?'log-err':'log-ok'}">${escHtml(st.message)}</span>\n`; log.scrollTop=log.scrollHeight; }
-  if (st.status==='done') {
-    clearInterval(renameTimer);
-    document.getElementById('btn-rename').disabled = false;
-    navDone(6, true);
-    await Promise.all([loadFiles(), loadFolders(), refreshStats()]);
-    toast(st.message, 'success');
-  }
-  if (st.status==='error') {
-    clearInterval(renameTimer);
-    document.getElementById('btn-rename').disabled = false;
-    toast(st.message, 'error');
-  }
-}
-
-// ── Naming rules ───────────────────────────────────────────────
-function collectRules() {
+// ─────────────────────────────────────────────────────────────
+// Scan
+// ─────────────────────────────────────────────────────────────
+function buildNamingRules() {
+  const abbrevRows = document.querySelectorAll('#abbrev-rows .custom-row');
   const abbrevs = {};
-  document.querySelectorAll('#abbrev-rows .custom-row').forEach(r=>{
-    const [a,b] = r.querySelectorAll('input');
-    if(a.value.trim()&&b.value.trim()) abbrevs[a.value.trim()]=b.value.trim();
+  abbrevRows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    if (inputs[0] && inputs[1] && inputs[0].value.trim()) {
+      abbrevs[inputs[0].value.trim()] = inputs[1].value.trim();
+    }
   });
-  const orgs = [];
-  document.querySelectorAll('#org-rows .custom-row').forEach(r=>{
-    const [a,b] = r.querySelectorAll('input');
-    if(a.value.trim()&&b.value.trim()) orgs.push([a.value.trim(),b.value.trim()]);
+  const orgRows = document.querySelectorAll('#org-rows .custom-row');
+  const orgReplacements = [];
+  orgRows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    if (inputs[0] && inputs[1] && inputs[0].value.trim()) {
+      orgReplacements.push([inputs[0].value.trim(), inputs[1].value.trim()]);
+    }
   });
-  const rules = {
+  return {
     target_length: parseInt(document.getElementById('target-len').value),
     title_case: document.getElementById('r-titlecase').checked,
     remove_fillers: document.getElementById('r-fillers').checked,
     split_camelcase: document.getElementById('r-camel').checked,
     normalize_dates: document.getElementById('r-dates').checked,
-    custom_acronyms: document.getElementById('custom-acronyms').value.split(',').map(s=>s.trim()).filter(Boolean),
+    custom_acronyms: [],
     custom_abbrevs: abbrevs,
-    custom_org_replacements: orgs,
+    custom_org_replacements: orgReplacements,
   };
-  updateRulesSummary(rules);
-  return rules;
 }
 
-function updateLenLabel() {
-  document.getElementById('len-label').textContent = document.getElementById('target-len').value;
-  updateRulesSummary();
+async function startScan() {
+  if (!sessionId) { toast('Sign in first', 'error'); return; }
+  const siteUrl = document.getElementById('site-url').value.trim();
+  if (!siteUrl) { toast('Enter a SharePoint site URL', 'error'); return; }
+  const library = document.getElementById('library-name').value.trim() || 'Documents';
+  const excludeRaw = document.getElementById('exclude-folders').value.trim();
+  const excludeFolders = excludeRaw ? excludeRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('cancel-scan-btn').style.display = '';
+  const logEl = document.getElementById('scan-log');
+  const progWrap = document.getElementById('progress-wrap');
+  logEl.style.display = 'block';
+  progWrap.style.display = 'block';
+  logEl.textContent = '> Starting scan…\n';
+
+  try {
+    const resp = await apiPost('/api/scan', {
+      site_url: siteUrl,
+      library,
+      exclude_folders: excludeFolders,
+      naming_rules: buildNamingRules(),
+    });
+    if (!resp.ok) {
+      const d = await resp.json();
+      throw new Error(d.detail || 'Scan failed');
+    }
+  } catch(e) {
+    toast('Scan error: ' + e.message, 'error');
+    document.getElementById('scan-btn').disabled = false;
+    document.getElementById('cancel-scan-btn').style.display = 'none';
+    return;
+  }
+
+  scanPoller = setInterval(pollScan, 1200);
 }
 
-function updateRulesSummary() {
-  const len = document.getElementById('target-len').value;
-  const on = ['r-titlecase','r-fillers','r-camel','r-dates'].filter(id=>document.getElementById(id).checked).length;
-  document.getElementById('rules-summary').textContent = `— ${len} char target, ${on}/4 rules on`;
+async function pollScan() {
+  try {
+    const r = await apiFetch('/api/scan/status');
+    const d = await r.json();
+    const logEl = document.getElementById('scan-log');
+    document.getElementById('progress-label').textContent = d.message || '';
+
+    if (d.total > 0) {
+      const pct = Math.min(100, Math.round((d.progress / d.total) * 100));
+      document.getElementById('progress-fill').style.width = pct + '%';
+    } else if (d.status === 'running') {
+      document.getElementById('progress-fill').style.width = '30%';
+    }
+
+    logEl.textContent = '> ' + (d.message || '') + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+
+    if (d.status === 'done' || d.status === 'error') {
+      clearInterval(scanPoller); scanPoller = null;
+      document.getElementById('scan-btn').disabled = false;
+      document.getElementById('cancel-scan-btn').style.display = 'none';
+      if (d.status === 'done') {
+        document.getElementById('progress-fill').style.width = '100%';
+        logEl.textContent += '> ✓ ' + d.message + '\n';
+        toast('Scan complete', 'success');
+        markStepDone(3);
+        await loadFiles();
+      } else {
+        logEl.textContent += '> ✗ Error: ' + d.message + '\n';
+        toast('Scan error: ' + d.message, 'error');
+      }
+    }
+  } catch(e) {}
 }
 
-function toggleRules() {
-  const b = document.getElementById('rules-body'), c = document.getElementById('rules-chev');
-  b.classList.toggle('open');
-  c.className = b.classList.contains('open') ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+function cancelScan() {
+  if (scanPoller) { clearInterval(scanPoller); scanPoller = null; }
+  document.getElementById('scan-btn').disabled = false;
+  document.getElementById('cancel-scan-btn').style.display = 'none';
+  toast('Scan cancelled');
 }
 
-function addAbbrevRow(a='',b='') {
-  const d = document.createElement('div'); d.className='custom-row';
-  d.innerHTML=`<input class="form-control" placeholder="Full word" value="${escHtml(a)}" style="font-size:12px"><span style="color:var(--muted);font-size:12px">→</span><input class="form-control" placeholder="Short" value="${escHtml(b)}" style="font-size:12px;max-width:100px"><button class="rm-row-btn" onclick="this.parentElement.remove()">×</button>`;
-  document.getElementById('abbrev-rows').appendChild(d);
-}
-
-function addOrgRow(a='',b='') {
-  const d = document.createElement('div'); d.className='custom-row';
-  d.innerHTML=`<input class="form-control" placeholder="Full name or regex" value="${escHtml(a)}" style="font-size:12px"><span style="color:var(--muted);font-size:12px">→</span><input class="form-control" placeholder="Replace with" value="${escHtml(b)}" style="font-size:12px;max-width:130px"><button class="rm-row-btn" onclick="this.parentElement.remove()">×</button>`;
-  document.getElementById('org-rows').appendChild(d);
-}
-
-// ── Nav state ──────────────────────────────────────────────────
-function navDone(step, done) {
-  const el = document.getElementById('nav-'+step);
-  const badge = document.getElementById('badge-'+step);
-  if (done) {
-    el.classList.add('done'); el.querySelector('.sn').innerHTML='<i class="bi bi-check"></i>';
-    if(badge){badge.classList.add('done');badge.innerHTML='<i class="bi bi-check"></i>';}
-  } else {
-    el.classList.remove('done'); el.querySelector('.sn').textContent=step;
-    if(badge){badge.classList.remove('done');badge.textContent=step;}
+// ─────────────────────────────────────────────────────────────
+// Load files
+// ─────────────────────────────────────────────────────────────
+async function loadFiles() {
+  try {
+    const r = await apiFetch('/api/files?limit=2000');
+    const d = await r.json();
+    allFiles = d.rows || [];
+    isExampleData = false;
+    document.getElementById('sample-banner').style.display = 'none';
+    renderTable();
+    await loadStats();
+    await loadFolders();
+  } catch(e) {
+    toast('Could not load files', 'error');
   }
 }
 
-// Scroll spy
-new IntersectionObserver(entries=>{
-  entries.forEach(e=>{
-    if(e.isIntersecting){
-      const n=e.target.id.replace('s','');
-      document.querySelectorAll('.step-link').forEach(l=>l.classList.remove('active'));
-      const el=document.getElementById('nav-'+n);if(el)el.classList.add('active');
-    }
-  });
-},{rootMargin:'-20% 0px -70% 0px'}).observe.apply(
-  new IntersectionObserver(()=>{}),
-  ['s1','s2','s3','s4','s5','s6'].map(id=>document.getElementById(id)).filter(Boolean)
-);
-
-// ── Toast ──────────────────────────────────────────────────────
-function toast(msg, type='info') {
-  const el = document.createElement('div'); el.className='toast-item';
-  el.style.borderLeft=`3px solid ${type==='error'?'#f87171':type==='success'?'#4ade80':'#60a5fa'}`;
-  el.textContent=msg; document.getElementById('toast-wrap').appendChild(el);
-  requestAnimationFrame(()=>el.classList.add('show'));
-  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},3500);
+async function loadStats() {
+  if (isExampleData) {
+    const rows = EXAMPLE_ROWS;
+    document.getElementById('st-total').textContent = rows.length;
+    document.getElementById('st-approved').textContent = rows.filter(r=>r.approved).length;
+    document.getElementById('st-over30').textContent = rows.filter(r=>r.over30).length;
+    document.getElementById('st-temp').textContent = rows.filter(r=>r.suggested_name==='DELETE - Temp File').length;
+    document.getElementById('st-renamed').textContent = rows.filter(r=>r.renamed).length;
+    return;
+  }
+  try {
+    const r = await apiFetch('/api/files/stats');
+    const d = await r.json();
+    document.getElementById('st-total').textContent = d.total;
+    document.getElementById('st-approved').textContent = d.approved;
+    document.getElementById('st-over30').textContent = d.over30;
+    document.getElementById('st-temp').textContent = d.temp_files;
+    document.getElementById('st-renamed').textContent = d.renamed;
+  } catch(e) {}
 }
 
-// ── Init ───────────────────────────────────────────────────────
-// Scroll spy setup (proper version)
-(function(){
-  const obs = new IntersectionObserver(entries=>{
-    entries.forEach(e=>{
-      if(e.isIntersecting){
-        const n=e.target.id.replace('s','');
-        document.querySelectorAll('.step-link').forEach(l=>l.classList.remove('active'));
-        const el=document.getElementById('nav-'+n);if(el)el.classList.add('active');
+async function loadFolders() {
+  const listEl = document.getElementById('folder-list');
+  if (isExampleData) { listEl.innerHTML = '<div class="empty-msg">Run a scan first to see folders here.</div>'; return; }
+  try {
+    const r = await apiFetch('/api/files/folders');
+    const folders = await r.json();
+    if (!folders.length) { listEl.innerHTML = '<div class="empty-msg">No folders found.</div>'; return; }
+    listEl.innerHTML = '';
+    document.getElementById('rename-actions').style.display = 'flex';
+    folders.forEach(f => {
+      const pct = f.file_count > 0 ? Math.round((f.approved_count / f.file_count) * 100) : 0;
+      const card = document.createElement('div');
+      card.className = 'folder-card';
+      card.dataset.folder = f.top_folder;
+      card.innerHTML = `
+        <div class="fc-icon">📁</div>
+        <div style="flex:1">
+          <div class="fc-name">${f.top_folder || '/'}</div>
+          <div class="fc-meta">${f.approved_count} / ${f.file_count} approved</div>
+          <div class="fc-bar"><div class="fc-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      card.onclick = () => selectFolder(f.top_folder, card);
+      listEl.appendChild(card);
+    });
+  } catch(e) {}
+}
+
+function selectFolder(folder, el) {
+  document.querySelectorAll('.folder-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedFolder = folder;
+  document.getElementById('rename-btn').disabled = false;
+  document.getElementById('rename-folder-label').textContent = 'Selected: ' + folder;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Table rendering
+// ─────────────────────────────────────────────────────────────
+function getDisplayRows() {
+  return isExampleData ? EXAMPLE_ROWS : allFiles;
+}
+
+function renderTable() {
+  const rows = getDisplayRows();
+  const search = (document.getElementById('search-input').value || '').toLowerCase();
+  const appFilter = document.getElementById('filter-approved').value;
+  const overFilter = document.getElementById('filter-over').value;
+
+  filteredFiles = rows.filter(r => {
+    if (search && !r.original_name.toLowerCase().includes(search) && !r.suggested_name.toLowerCase().includes(search) && !r.folder_path.toLowerCase().includes(search)) return false;
+    if (appFilter === 'yes' && !r.approved) return false;
+    if (appFilter === 'no' && r.approved) return false;
+    if (overFilter === 'yes' && !r.over30) return false;
+    if (overFilter === 'no' && r.over30) return false;
+    return true;
+  });
+
+  if (sortField) {
+    filteredFiles.sort((a, b) => {
+      let av = a[sortField] || '', bv = b[sortField] || '';
+      return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filteredFiles.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageRows = filteredFiles.slice(start, start + PAGE_SIZE);
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+
+  if (!pageRows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">No files match the current filter.</td></tr>';
+  } else {
+    pageRows.forEach((f, idx) => {
+      const globalIdx = start + idx + 1;
+      const isTemp = f.suggested_name === 'DELETE - Temp File';
+      const tr = document.createElement('tr');
+      if (f.approved) tr.classList.add('row-approved');
+      else if (isTemp) tr.classList.add('row-temp');
+      else if (f.over30) tr.classList.add('row-over');
+
+      const charLen = f.suggested_name.length;
+      const charPill = charLen <= 30
+        ? `<span class="chars-ok">${charLen}</span>`
+        : `<span class="chars-warn">${charLen}</span>`;
+
+      tr.innerHTML = `
+        <td class="col-n">${globalIdx}</td>
+        <td class="col-folder" title="${f.folder_path}">${f.folder_path.split('/').slice(-2).join('/')}</td>
+        <td class="col-orig" title="${f.original_name}${f.extension}">${f.original_name}</td>
+        <td class="col-ext" style="font-size:11px;color:var(--muted)">${f.extension}</td>
+        <td class="col-sug">
+          <div class="name-cell">
+            <span class="name-text" id="nt-${f.item_id}" title="${f.suggested_name}">${f.suggested_name}</span>
+            <button class="edit-btn" onclick="startEdit('${f.item_id}')" title="Edit">✏️</button>
+          </div>
+        </td>
+        <td class="col-chars">${charPill}</td>
+        <td class="col-ok">
+          <input type="checkbox" class="approve-cb" ${f.approved ? 'checked' : ''}
+            onchange="toggleApprove('${f.item_id}', this.checked)">
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Pagination
+  document.getElementById('page-info').textContent = `${filteredFiles.length} files · Page ${currentPage} of ${totalPages}`;
+  renderPageBtns(totalPages);
+
+  // Stats sync
+  loadStats();
+}
+
+function renderPageBtns(total) {
+  const wrap = document.getElementById('page-btns');
+  wrap.innerHTML = '';
+  const range = [];
+  for (let i = Math.max(1, currentPage - 2); i <= Math.min(total, currentPage + 2); i++) range.push(i);
+  if (range[0] > 1) { const b = mkPgBtn('«', 1); wrap.appendChild(b); }
+  range.forEach(i => { const b = mkPgBtn(i, i); if (i === currentPage) b.classList.add('cur'); wrap.appendChild(b); });
+  if (range[range.length-1] < total) { const b = mkPgBtn('»', total); wrap.appendChild(b); }
+}
+
+function mkPgBtn(label, page) {
+  const b = document.createElement('button');
+  b.className = 'page-btn'; b.textContent = label;
+  b.onclick = () => { currentPage = page; renderTable(); };
+  return b;
+}
+
+function sortBy(field) {
+  if (sortField === field) sortAsc = !sortAsc; else { sortField = field; sortAsc = true; }
+  renderTable();
+}
+
+// ─────────────────────────────────────────────────────────────
+// Inline edit
+// ─────────────────────────────────────────────────────────────
+function startEdit(itemId) {
+  if (isExampleData) { toast('Run a scan to edit real files', 'error'); return; }
+  const span = document.getElementById('nt-' + itemId);
+  if (!span) return;
+  const current = span.textContent;
+  const inp = document.createElement('input');
+  inp.className = 'name-edit-input';
+  inp.value = current;
+  inp.style.width = '100%';
+  span.parentNode.replaceChild(inp, span);
+  inp.focus(); inp.select();
+  inp.onblur = () => commitEdit(itemId, inp);
+  inp.onkeydown = e => {
+    if (e.key === 'Enter') inp.blur();
+    if (e.key === 'Escape') { inp.value = current; inp.blur(); }
+  };
+}
+
+async function commitEdit(itemId, inp) {
+  const newName = inp.value.trim();
+  const span = document.createElement('span');
+  span.className = 'name-text'; span.id = 'nt-' + itemId; span.textContent = newName;
+  inp.parentNode.replaceChild(span, inp);
+
+  const file = allFiles.find(f => f.item_id === itemId);
+  if (!file || file.suggested_name === newName) return;
+
+  try {
+    const r = await apiFetch('/api/files/' + itemId, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({suggested_name: newName})
+    });
+    if (!r.ok) throw new Error();
+    file.suggested_name = newName;
+    file.over30 = newName.length > 30;
+    renderTable();
+    toast('Name updated', 'success');
+  } catch(e) {
+    toast('Update failed', 'error');
+    file && (span.textContent = file.suggested_name);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Approve
+// ─────────────────────────────────────────────────────────────
+async function toggleApprove(itemId, checked) {
+  if (isExampleData) { toast('Run a scan to approve real files', 'error'); return; }
+  const file = allFiles.find(f => f.item_id === itemId);
+  if (!file) return;
+  file.approved = checked;
+  try {
+    await apiFetch('/api/files/approve', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({item_ids: [itemId], approved: checked})
+    });
+    renderTable();
+  } catch(e) { file.approved = !checked; renderTable(); }
+}
+
+async function approveVisible() {
+  if (isExampleData) { toast('Run a scan to approve real files', 'error'); return; }
+  const ids = filteredFiles.map(f => f.item_id);
+  if (!ids.length) { toast('No visible files', 'error'); return; }
+  allFiles.forEach(f => { if (ids.includes(f.item_id)) f.approved = true; });
+  renderTable();
+  try {
+    await apiFetch('/api/files/approve', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({item_ids: ids, approved: true})
+    });
+    toast(`Approved ${ids.length} files`, 'success');
+  } catch(e) { toast('Approve failed', 'error'); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Export
+// ─────────────────────────────────────────────────────────────
+function exportCsv() {
+  const rows = isExampleData ? EXAMPLE_ROWS : allFiles;
+  const header = ['#','Folder','Original Name','Extension','Suggested Name','Chars','Approved','Renamed','Over Target'];
+  const lines = [header.join(',')];
+  rows.forEach((f, i) => {
+    lines.push([
+      i+1,
+      '"'+f.folder_path+'"',
+      '"'+f.original_name+'"',
+      f.extension,
+      '"'+f.suggested_name+'"',
+      f.suggested_name.length,
+      f.approved ? 'Yes' : 'No',
+      f.renamed ? 'Yes' : 'No',
+      f.over30 ? 'Yes' : 'No',
+    ].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fileforge_names.csv';
+  a.click();
+  toast('CSV exported', 'success');
+}
+
+function openInExcel() {
+  if (isExampleData || !sessionId) {
+    toast('Run a scan first, then export to Excel', 'error');
+    return;
+  }
+  // Trigger download with session header via hidden form trick won't work for headers.
+  // Use a query param fallback or rely on cookie. Best approach: open URL directly,
+  // backend reads X-Session-Id from header. We'll create a temporary anchor
+  // and fetch as blob to preserve the session header.
+  apiFetch('/api/export/xlsx')
+    .then(r => {
+      if (!r.ok) throw new Error('Export failed');
+      return r.blob();
+    })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'fileforge_names.xlsx';
+      a.click();
+      toast('Excel file downloaded', 'success');
+    })
+    .catch(e => toast('Excel export failed: ' + e.message, 'error'));
+}
+
+async function copyForClaude() {
+  if (isExampleData || !sessionId) {
+    toast('Run a scan first', 'error'); return;
+  }
+  try {
+    const r = await apiFetch('/api/export/claude');
+    const d = await r.json();
+    await navigator.clipboard.writeText(d.prompt);
+    toast(`Copied ${d.included} files for Claude`, 'success');
+  } catch(e) { toast('Copy failed', 'error'); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Rename
+// ─────────────────────────────────────────────────────────────
+async function applyRename() {
+  if (!sessionId) { toast('Sign in first', 'error'); return; }
+  if (!writeAccess) {
+    document.getElementById('rename-write-warn').style.display = 'block';
+    toast('Write access required', 'error'); return;
+  }
+  if (!selectedFolder) { toast('Select a folder first', 'error'); return; }
+  if (!confirm(`Apply renames in folder "${selectedFolder}"? This cannot be undone.`)) return;
+
+  const logWrap = document.getElementById('rename-log-wrap');
+  const logEl = document.getElementById('rename-log');
+  logWrap.style.display = 'block';
+  logEl.innerHTML = '<span style="color:var(--muted)">Starting rename…</span>\n';
+  document.getElementById('rename-btn').disabled = true;
+
+  try {
+    const resp = await apiFetch('/api/rename', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({folder: selectedFolder})
+    });
+    if (!resp.ok) {
+      const d = await resp.json();
+      throw new Error(d.detail || 'Rename failed');
+    }
+  } catch(e) {
+    logEl.innerHTML += `<span class="log-err">Error: ${e.message}</span>\n`;
+    document.getElementById('rename-btn').disabled = false;
+    return;
+  }
+
+  renamePoller = setInterval(async () => {
+    try {
+      const r = await apiFetch('/api/rename/status');
+      const d = await r.json();
+      logEl.innerHTML = '';
+      if (d.status === 'running') {
+        logEl.innerHTML += `<span style="color:var(--muted)">${d.message || '…'}</span>\n`;
+      }
+      if (d.status === 'done' || d.status === 'error') {
+        clearInterval(renamePoller); renamePoller = null;
+        const cls = d.status === 'done' ? 'log-ok' : 'log-err';
+        logEl.innerHTML += `<span class="${cls}">${d.message}</span>\n`;
+        document.getElementById('rename-btn').disabled = false;
+        if (d.status === 'done') {
+          toast(d.message, 'success');
+          markStepDone(5);
+          await loadFiles();
+          await loadFolders();
+        } else {
+          toast('Rename error: ' + d.message, 'error');
+        }
+      }
+    } catch(e) {}
+  }, 1000);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Config panel helpers
+// ─────────────────────────────────────────────────────────────
+function toggleRules() {
+  const body = document.getElementById('rules-body');
+  const arrow = document.getElementById('rules-arrow');
+  body.classList.toggle('open');
+  arrow.textContent = body.classList.contains('open') ? '▲' : '▼';
+}
+
+function addAbbrevRow(orig = '', abbrev = '') {
+  const row = document.createElement('div'); row.className = 'custom-row';
+  row.innerHTML = `<input class="inp" placeholder="Original" value="${orig}">
+    <span style="color:var(--muted)">→</span>
+    <input class="inp" placeholder="Abbrev" value="${abbrev}">
+    <button class="rm-row-btn" onclick="this.closest('.custom-row').remove()">×</button>`;
+  document.getElementById('abbrev-rows').appendChild(row);
+}
+
+function addOrgRow(orig = '', repl = '') {
+  const row = document.createElement('div'); row.className = 'custom-row';
+  row.innerHTML = `<input class="inp" placeholder="Original" value="${orig}">
+    <span style="color:var(--muted)">→</span>
+    <input class="inp" placeholder="Replacement" value="${repl}">
+    <button class="rm-row-btn" onclick="this.closest('.custom-row').remove()">×</button>`;
+  document.getElementById('org-rows').appendChild(row);
+}
+
+// ─────────────────────────────────────────────────────────────
+// API helpers
+// ─────────────────────────────────────────────────────────────
+function apiFetch(url, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (sessionId) opts.headers['X-Session-Id'] = sessionId;
+  return fetch(url, opts);
+}
+
+function apiPost(url, body) {
+  return apiFetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Step nav helpers
+// ─────────────────────────────────────────────────────────────
+function markStepDone(n) {
+  document.getElementById('badge-' + n) && document.getElementById('badge-' + n).classList.add('done');
+  document.getElementById('nav-' + n) && document.getElementById('nav-' + n).classList.add('done');
+}
+
+function setupScrollSpy() {
+  const sections = ['s1','s2','s3','s4','s5'];
+  const navLinks = sections.map((_, i) => document.getElementById('nav-' + (i+1)));
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = sections.indexOf(entry.target.id);
+        navLinks.forEach((l, i) => l && l.classList.toggle('active', i === idx));
       }
     });
-  },{rootMargin:'-20% 0px -70% 0px'});
-  ['s1','s2','s3','s4','s5','s6'].forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
-})();
+  }, { rootMargin: '-50px 0px -60% 0px' });
+  sections.forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
+}
 
-(async function init(){
-  const savedCid = localStorage.getItem('ff_cid');
-  if (savedCid) document.getElementById('client-id-input').value = savedCid;
-  if (!sessionId) return;
-  const me = await api('GET','/api/auth/me');
-  if (me?.authenticated) {
-    writeAccess = me.write_access;
-    onConnected(me.user, me.write_access);
-    const st = await api('GET','/api/files/stats');
-    if (st?.total > 0) {
-      document.getElementById('st-total').textContent = st.total.toLocaleString();
-      document.getElementById('st-approved').textContent = st.approved.toLocaleString();
-      document.getElementById('st-over').textContent = st.over30.toLocaleString();
-      document.getElementById('st-temp').textContent = st.temp_files.toLocaleString();
-      document.getElementById('scan-done-txt').textContent = `${st.total.toLocaleString()} files from previous scan`;
-      document.getElementById('scan-done-msg').style.display = '';
-      navDone(4, true);
-      await Promise.all([loadFiles(), loadFolders()]);
-    }
-  } else {
-    sessionId = null; localStorage.removeItem('ff_session');
-  }
-})();
+// Initial render with example data
+renderTable();
+loadStats();
 </script>
 </body>
 </html>

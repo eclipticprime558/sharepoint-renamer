@@ -459,3 +459,217 @@ def start_rename(config: RenameConfig, background_tasks: BackgroundTasks,
 def rename_status(x_session_id: Optional[str] = Header(None)):
     sess = get_session(x_session_id)
     return sess['rename_state']
+
+
+# ── Auto Setup (Device Code) ────────────────────────────────────────────────
+# Uses Azure CLI public client to get an admin token, then creates an app
+# registration in the user's tenant automatically.
+
+AZURE_CLI_CLIENT = "04b07795-8542-4c4b-9c8c-8b37e31d3bb0"
+
+# Permissions to grant: Sites.Read.All, Files.Read.All, Sites.ReadWrite.All, Files.ReadWrite.All
+GRAPH_PERMS = [
+    {"id": "332a536c-c7ef-4017-ab91-336970924f0d", "type": "Scope"},  # Sites.Read.All
+    {"id": "9492366f-7969-46a4-8d15-ed1a20078fff", "type": "Scope"},  # Sites.ReadWrite.All
+    {"id": "10465720-29dd-4523-a11a-6a75c743c9d9", "type": "Scope"},  # Files.Read.All
+    {"id": "75359482-378d-4052-8f01-80520e7db3cd", "type": "Scope"},  # Files.ReadWrite.All
+]
+
+class DeviceCodeStart(BaseModel):
+    redirect_uri: str
+
+class DeviceCodePoll(BaseModel):
+    device_code: str
+    redirect_uri: str
+
+@app.post("/api/setup/device-code")
+def start_device_code(body: DeviceCodeStart):
+    """Start device code flow to get an admin token for app registration creation."""
+    resp = requests.post(
+        "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode",
+        data={
+            "client_id": AZURE_CLI_CLIENT,
+            "scope": "https://graph.microsoft.com/Application.ReadWrite.All https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All https://graph.microsoft.com/Directory.Read.All offline_access",
+        },
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        raise HTTPException(400, f"Could not start device code flow: {resp.text[:200]}")
+    d = resp.json()
+    return {
+        "device_code": d["device_code"],
+        "user_code": d["user_code"],
+        "verification_uri": d.get("verification_uri", "https://microsoft.com/devicelogin"),
+        "expires_in": d.get("expires_in", 900),
+        "interval": d.get("interval", 5),
+    }
+
+
+@app.post("/api/setup/poll")
+def poll_device_code(body: DeviceCodePoll):
+    """Poll for device code completion. On success, creates an app registration."""
+    resp = requests.post(
+        "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        data={
+            "client_id": AZURE_CLI_CLIENT,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            "device_code": body.device_code,
+        },
+        timeout=15,
+    )
+    d = resp.json()
+
+    if "access_token" in d:
+        try:
+            client_id = _create_app_registration(d["access_token"], body.redirect_uri)
+            return {"status": "done", "client_id": client_id}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    error = d.get("error", "")
+    if error == "authorization_pending":
+        return {"status": "pending"}
+    if error in ("authorization_declined", "access_denied"):
+        return {"status": "declined"}
+    if error == "expired_token":
+        return {"status": "expired"}
+    return {"status": "error", "message": d.get("error_description", error)}
+
+
+def _create_app_registration(admin_token: str, redirect_uri: str) -> str:
+    h = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+
+    # 1. Create the application
+    app_body = {
+        "displayName": "FileForge - SharePoint Renamer",
+        "signInAudience": "AzureADMyOrg",
+        "spa": {"redirectUris": [redirect_uri]},
+        "requiredResourceAccess": [{
+            "resourceAppId": "00000003-0000-0000-c000-000000000000",
+            "resourceAccess": GRAPH_PERMS,
+        }],
+    }
+    r = requests.post("https://graph.microsoft.com/v1.0/applications", json=app_body, headers=h, timeout=15)
+    r.raise_for_status()
+    app_data = r.json()
+    app_object_id = app_data["id"]
+    app_client_id = app_data["appId"]
+
+    # 2. Create service principal
+    sp_r = requests.post(
+        "https://graph.microsoft.com/v1.0/servicePrincipals",
+        json={"appId": app_client_id},
+        headers=h, timeout=15,
+    )
+    sp_data = sp_r.json()
+    sp_id = sp_data.get("id")
+
+    # 3. Grant admin consent via oauth2PermissionGrants (best-effort)
+    if sp_id:
+        try:
+            graph_sp_r = requests.get(
+                "https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'",
+                headers=h, timeout=15,
+            )
+            graph_sp_id = graph_sp_r.json()["value"][0]["id"]
+            requests.post(
+                "https://graph.microsoft.com/v1.0/oauth2PermissionGrants",
+                json={
+                    "clientId": sp_id,
+                    "consentType": "AllPrincipals",
+                    "resourceId": graph_sp_id,
+                    "scope": "Sites.Read.All Files.Read.All Sites.ReadWrite.All Files.ReadWrite.All",
+                },
+                headers=h, timeout=15,
+            )
+        except Exception:
+            pass  # Consent granted interactively on first sign-in if this fails
+
+    return app_client_id
+
+
+# ── Excel export ────────────────────────────────────────────────────────────
+
+@app.get("/api/export/xlsx")
+def export_xlsx(x_session_id: Optional[str] = Header(None)):
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    sess = get_session(x_session_id)
+    files = sess["files"]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "FileForge Names"
+
+    # Header row styling
+    hdr_fill = PatternFill("solid", fgColor="1D4ED8")
+    hdr_font = Font(bold=True, color="FFFFFF", name="Calibri", size=11)
+    thin = Side(style="thin", color="D1D5DB")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    headers = ["#", "Folder", "Original Name", "Extension", "Suggested Name", "Chars", "Approved", "Renamed", "Over Target"]
+    col_widths = [5, 30, 40, 8, 40, 7, 9, 9, 10]
+
+    for col, (hdr, w) in enumerate(zip(headers, col_widths), 1):
+        cell = ws.cell(row=1, column=col, value=hdr)
+        cell.font = hdr_font
+        cell.fill = hdr_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = border
+        ws.column_dimensions[get_column_letter(col)].width = w
+
+    ws.row_dimensions[1].height = 22
+    ws.freeze_panes = "A2"
+
+    # Data rows
+    warn_fill = PatternFill("solid", fgColor="FEF3C7")
+    ok_fill   = PatternFill("solid", fgColor="F0FDF4")
+    temp_fill = PatternFill("solid", fgColor="FEE2E2")
+
+    for i, f in enumerate(files, 1):
+        row = i + 1
+        is_temp = f["suggested_name"] == "DELETE - Temp File"
+        row_fill = temp_fill if is_temp else (warn_fill if f["over30"] else None)
+
+        values = [
+            i,
+            f["folder_path"],
+            f["original_name"],
+            f["extension"],
+            f["suggested_name"],
+            len(f["suggested_name"]),
+            "Yes" if f["approved"] else "No",
+            "Yes" if f["renamed"] else "No",
+            "Yes" if f["over30"] else "No",
+        ]
+        for col, val in enumerate(values, 1):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.border = border
+            cell.alignment = Alignment(vertical="center")
+            if col in (3, 5):
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+            if row_fill:
+                cell.fill = row_fill
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=fileforge_names.xlsx"},
+    )
+
+
+# ── Config ──────────────────────────────────────────────────────────────────
+
+@app.get("/api/config")
+def get_config():
+    """Return public config for the frontend."""
+    ff_cid = os.environ.get("FILEFORGE_CLIENT_ID", "")
+    return {"managed_client_id": ff_cid if ff_cid else None}
