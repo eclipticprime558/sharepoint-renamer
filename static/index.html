@@ -334,7 +334,7 @@
     .rm-row-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 16px; }
     .rm-row-btn:hover { color: var(--danger); }
     .len-row { display: flex; align-items: center; gap: 12px; }
-    .len-row input[type=range] { flex: 1; accent-color: var(--purple); }
+    .len-row input[type=range] { flex: 1; max-width: 200px; accent-color: var(--purple); }
     .len-val { font-weight: 700; color: var(--purple); min-width: 28px; text-align: center; font-family: 'Space Grotesk', sans-serif; }
     hr.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 
@@ -556,8 +556,8 @@
         <div id="device-code-panel">
           <div class="url-row mt-3">
             <span style="font-size:13px;color:var(--muted)">Open in any browser:</span>
-            <a id="dc-url" href="#" target="_blank" class="url-link"></a>
-            <button class="copy-btn" onclick="copyText(document.getElementById('dc-url').textContent)">Copy</button>
+            <button id="dc-open-btn" class="btn-galaxy-sm" onclick="window.open(dcVerificationUri, '_blank')" style="display:none">Open Browser →</button>
+            <button class="copy-btn" onclick="copyText(dcVerificationUri)">Copy URL</button>
           </div>
           <div class="code-display" id="dc-code">—</div>
           <button class="copy-btn" style="display:block;margin:0 auto 12px" onclick="copyText(document.getElementById('dc-code').textContent.trim())">Copy code</button>
@@ -964,6 +964,7 @@ let renamePoller = null;
 let dcPoller = null;
 let dcDeviceCode = null;
 let dcRedirectUri = null;
+let dcVerificationUri = null;
 
 // ─────────────────────────────────────────────────────────────
 // Init
@@ -1002,13 +1003,16 @@ async function startAutoSetup() {
       body: JSON.stringify({redirect_uri: dcRedirectUri})
     });
     const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'Failed to start device code flow');
+    if (!r.ok) throw new Error(`[HTTP ${r.status}] ${d.detail || JSON.stringify(d)}`);
 
     dcDeviceCode = d.device_code;
+    dcVerificationUri = d.verification_uri;
     document.getElementById('dc-code').textContent = d.user_code;
-    const urlEl = document.getElementById('dc-url');
-    urlEl.textContent = d.verification_uri;
-    urlEl.href = d.verification_uri;
+    const openBtn = document.getElementById('dc-open-btn');
+    openBtn.style.display = 'inline-block';
+
+    // Auto-open the browser tab for the user
+    window.open(dcVerificationUri, '_blank');
 
     // Start polling
     const interval = (d.interval || 5) * 1000;
