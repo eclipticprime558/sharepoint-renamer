@@ -333,6 +333,47 @@ def approve(body: ApproveBody, x_session_id: Optional[str] = Header(None)):
     return {"ok": True}
 
 
+# ── Claude export ──────────────────────────────────────────────
+
+@app.get("/api/export/claude")
+def export_for_claude(
+    limit: int = 200,
+    x_session_id: Optional[str] = Header(None),
+):
+    sess = get_session(x_session_id)
+    files = sess['files']
+    unapproved = [f for f in files if not f['approved'] and f['suggested_name'] != 'DELETE - Temp File']
+    sample = unapproved[:limit]
+
+    rows = []
+    for i, f in enumerate(sample):
+        folder = f['folder_path'].lstrip('/').split('/')
+        folder_label = '/'.join(folder[:2]) or '/'
+        rows.append(f"| {i+1} | {folder_label} | {f['original_name']}{f['extension']} | {f['suggested_name']} | {len(f['suggested_name'])} |")
+
+    note = f"\n> Showing first {limit} of {len(unapproved)} unapproved files.\n" if len(unapproved) > limit else ""
+
+    prompt = f"""I'm organizing files in a SharePoint document library and need help reviewing AI-generated name suggestions.
+
+**Rules already applied:**
+- Title Case with spaces (no underscores or hyphens)
+- Abbreviations: Report→Rpt, Meeting→Mtg, Management→Mgmt, Document→Doc, etc.
+- Dates moved to end in MM.DD.YY format
+- Duplicate markers and "Final" removed
+- Target: 30 characters or fewer
+
+**Your task:** Review the suggestions below. For any that could be clearer, shorter, or more consistent, provide a better alternative.
+
+Respond in this format for each file you'd change:
+`File # | Your suggestion | Brief reason`
+{note}
+| # | Folder | Original Filename | Current Suggestion | Chars |
+|---|--------|------------------|--------------------|-------|
+{chr(10).join(rows)}
+"""
+    return {"prompt": prompt, "total_unapproved": len(unapproved), "included": len(sample)}
+
+
 # ── Rename ─────────────────────────────────────────────────────────────────────
 
 def _rename_item(token, drive_id, item_id, new_name, retries=3):

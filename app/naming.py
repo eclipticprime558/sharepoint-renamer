@@ -5,26 +5,23 @@ import re
 from collections import defaultdict
 
 ACRONYMS = {
-    "SOAR", "DV", "SSA", "CJ", "CTH", "VSP", "SARAH", "OLC", "SSI", "SSDI",
-    "SSISSDI", "CE", "PH", "SS", "PR", "CV", "HUD", "VA", "FAQ", "FY",
-    "SPA", "MOU", "MOA", "RFP", "RFQ", "HR", "IT", "ID", "TB", "RRH",
-    "HMIS", "ESG", "SAMM", "TDCHA", "HHS", "COC", "PIT", "LMHA", "DSHS",
-    "PATH", "SSVF", "GPD", "HCV", "PSH", "TH", "VASH", "PHA", "CEO", "CFO",
-    "COO", "CTO", "508", "ESNAPS", "TX", "SNOFO", "PG", "APR", "DEC", "JAN",
-    "FEB", "MAR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV",
-    "ALTFUND", "CoC", "COC", "COSA", "PBC", "AR", "AP", "GL", "PO", "W9",
-    "YHDP", "NOFA", "BOD", "MHP", "UFA", "TWC", "TDHCA", "DSHS",
-    "AAB", "ACAC", "DIS", "HDAC", "HRSAC", "HSPAB", "ISS", "LEAB",
-    "OA", "PHP", "YAB", "YYA", "PS", "SSRG", "NHSDC", "SAM",
-    "NPI", "EIN", "IRS", "ACH", "NACHA", "PPP", "SBA", "CARES",
+    # Generic business / finance
+    "CEO", "CFO", "COO", "CTO", "CIO", "VP", "SVP", "EVP",
+    "HR", "IT", "ID", "FAQ", "FY", "Q1", "Q2", "Q3", "Q4",
+    "MOU", "MOA", "RFP", "RFQ", "SPA", "NDA", "SLA", "SOW",
+    "AR", "AP", "GL", "PO", "W9", "EIN", "IRS", "ACH",
+    "US", "USA", "UK", "EU", "UN",
+    # Months (for date parsing)
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    # Software / tech
+    "PDF", "XLS", "CSV", "PPT", "URL", "API",
 }
 
 PRESERVE_EXACT = {
-    "esnaps":     "eSNAPS",
     "quickbooks": "QuickBooks",
     "quickbook":  "QuickBooks",
-    "coc":        "CoC",
-    "cocs":       "CoCs",
+    "powerpoint": "PowerPoint",
 }
 
 LOWERCASE_WORDS = {
@@ -39,13 +36,7 @@ MMDDYY_RE      = re.compile(r'\b(0[1-9]|1[0-2])([0-3]\d)(1[6-9]|2[0-9])\b')
 FY_RANGE_RE    = re.compile(r'\b(20[1-2]\d)-(20[1-2]\d)\b')
 YEAR_RE        = re.compile(r'\b(20[1-2]\d)\b')
 
-ORG_REPLACEMENTS = [
-    (r'\bSouth\s+Alamo\s+Regional\s+Alliance(?:\s+for\s+(?:the\s+)?Homeless(?:ness)?)?\b', 'SARAH'),
-    (r'\bClose\s+to\s+Home\b',                   'CTH'),
-    (r'\bCity\s+of\s+San\s+Antonio\b',           'COSA'),
-    (r'\bSan\s+Antonio\s+Housing\s+Authority\b', 'SAHA'),
-    (r'\bDepartment\s+of\s+Housing\s+and\s+Urban\s+Development\b', 'HUD'),
-]
+ORG_REPLACEMENTS = []  # Populated at runtime from user-supplied custom_org_replacements
 
 WORD_ABBREVS = {
     "Accounts": "Accts", "Account": "Acct",
@@ -123,11 +114,7 @@ WORD_ABBREVS = {
 
 FILLER_WORDS = {"of", "the", "for", "in", "with", "and", "a", "an", "by", "or", "to", "at"}
 
-PREFIX_SHORTCUTS = [
-    ("Homelink Project Transfer Memo", "Transfer Memo"),
-    ("HUD RRH Transfer Memos",         "HUD RRH Memo"),
-    ("SAMM ESG TDCHA RRH",             "SAMM ESG RRH"),
-]
+PREFIX_SHORTCUTS = []  # Reserved for future user-defined shortcuts
 
 
 def _merge_rules(rules):
@@ -246,13 +233,8 @@ def clean_name(original, _rules_tuple=None):
     for pattern, replacement in org_reps:
         name = re.sub(pattern, replacement, name, flags=re.IGNORECASE)
 
-    name = re.sub(r'\beSNAPS\b', 'ESNAPS', name, flags=re.IGNORECASE)
-    name = re.sub(r'\be-snaps\b', 'ESNAPS', name, flags=re.IGNORECASE)
-    name = re.sub(r'\be\s+snaps\b', 'ESNAPS', name, flags=re.IGNORECASE)
     name = re.sub(r'\bQuickBooks\b', 'QUICKBOOKS', name, flags=re.IGNORECASE)
-    name = name.replace('CoCs', 'COCS').replace('CoC', 'COC')
-    name = re.sub(r'\b(TX-\d+)\b', lambda m: m.group(1).replace('-', 'HYPHEN'), name)
-    name = re.sub(r'\b(HMIS|SOAR|HUD|COC|ESG|RRH|SSVF|PATH|VASH|HCV|PSH)([(\[.])', r'\1 \2', name, flags=re.IGNORECASE)
+    name = re.sub(r'\bPowerPoint\b', 'POWERPOINT', name, flags=re.IGNORECASE)
 
     if norm_dates:
         name, date_str = extract_dates(name)

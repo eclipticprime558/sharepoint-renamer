@@ -1,2311 +1,1167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>FileForge — SharePoint File Management</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FileForge — SharePoint File Renamer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <style>
-    /* ── CSS Variables ── */
     :root {
-      --bg:       #050810;
-      --surface:  #0d1224;
-      --surface2: #131a30;
-      --border:   rgba(255,255,255,0.07);
-      --border2:  rgba(139,92,246,0.25);
-      --purple:   #8b5cf6;
-      --blue:     #4f72ff;
-      --teal:     #22d3ee;
-      --pink:     #f472b6;
-      --green:    #4ade80;
-      --text:     #e2e8f0;
-      --muted:    #94a3b8;
-      --dim:      #475569;
+      --bg: #f4f6fa;
+      --surface: #ffffff;
+      --border: #e2e6ef;
+      --text: #111827;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --header-h: 56px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 16px); }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-top: var(--header-h); }
+
+    /* ── Header ── */
+    #app-header {
+      position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+      background: #0f172a; z-index: 1000;
+      display: flex; align-items: center; padding: 0 24px; gap: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+    .logo { color: #fff; font-weight: 700; font-size: 16px; white-space: nowrap; }
+    .logo span { color: #60a5fa; }
+    .step-nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+    .step-nav::-webkit-scrollbar { display: none; }
+    .step-link {
+      display: flex; align-items: center; gap: 7px; padding: 5px 12px;
+      border-radius: 6px; text-decoration: none; white-space: nowrap;
+      color: #94a3b8; font-size: 13px; font-weight: 500; transition: all .15s;
+    }
+    .step-link:hover { color: #e2e8f0; background: rgba(255,255,255,.08); }
+    .step-link.active { color: #fff; background: rgba(255,255,255,.12); }
+    .step-link.done .sn { background: #16a34a !important; }
+    .step-link .sn {
+      width: 20px; height: 20px; border-radius: 50%; background: #374151;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .step-link.active .sn { background: var(--accent); }
+    #sign-out-btn { margin-left: auto; color: #94a3b8; background: none; border: 1px solid #334155; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    #sign-out-btn:hover { color: #fff; border-color: #64748b; }
+    #user-chip { color: #94a3b8; font-size: 12px; white-space: nowrap; display: none; }
+
+    /* ── Layout ── */
+    main { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+    /* ── Section cards ── */
+    .step-section { margin-bottom: 48px; }
+    .step-header {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 24px 28px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 12px 12px 0 0;
+      border-bottom: 2px solid var(--accent);
+    }
+    .step-badge {
+      width: 36px; height: 36px; border-radius: 50%; background: var(--accent);
+      color: #fff; font-weight: 700; font-size: 15px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .step-badge.done { background: var(--success); }
+    .step-header h2 { font-size: 18px; font-weight: 700; margin: 0 0 2px; }
+    .step-header p { font-size: 13px; color: var(--muted); margin: 0; }
+    .step-body {
+      background: var(--surface); border: 1px solid var(--border);
+      border-top: none; border-radius: 0 0 12px 12px; padding: 28px;
     }
 
-    /* ── Base ── */
-    *, *::before, *::after { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
+    /* ── Form ── */
+    label { font-size: 13px; font-weight: 600; color: var(--text); display: block; margin-bottom: 4px; }
+    .form-control, .form-select {
+      border: 1px solid var(--border); border-radius: 7px;
+      font-size: 13px; padding: 8px 12px; background: var(--surface); transition: border-color .15s;
     }
-    h1, h2, h3, h4, h5, h6, .font-heading { font-family: 'Space Grotesk', sans-serif; }
+    .form-control:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); outline: none; }
+    .form-text { font-size: 12px; color: var(--muted); margin-top: 3px; }
 
-    /* ── Stars canvas ── */
-    #stars-canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 0;
-    }
+    /* ── Buttons ── */
+    .btn-primary-custom { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary-custom:hover { background: #1d4ed8; }
+    .btn-primary-custom:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-outline-custom { background: none; color: var(--accent); border: 1px solid var(--accent); border-radius: 7px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-outline-custom:hover { background: var(--accent-light); }
+    .btn-success-custom { background: var(--success); color: #fff; border: none; border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-success-custom:hover { background: #15803d; }
+    .btn-danger-custom { background: var(--danger); color: #fff; border: none; border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-danger-custom:hover:not(:disabled) { background: #b91c1c; }
+    .btn-danger-custom:disabled { background: #fca5a5; cursor: not-allowed; }
 
-    /* ── Galaxy gradient utilities ── */
-    .gradient-text {
-      background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 50%, var(--teal) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .gradient-text-pink {
-      background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .btn-galaxy {
-      background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600;
-      padding: 12px 28px;
-      transition: all 0.25s;
-      box-shadow: 0 4px 20px rgba(139,92,246,0.35);
-    }
-    .btn-galaxy:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(139,92,246,0.5);
-      color: #fff;
-    }
-    .btn-galaxy:active { transform: translateY(0); }
-    .btn-galaxy-outline {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--border2);
-      border-radius: 10px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600;
-      padding: 12px 28px;
-      transition: all 0.25s;
-    }
-    .btn-galaxy-outline:hover {
-      border-color: var(--purple);
-      color: var(--purple);
-      background: rgba(139,92,246,0.08);
-    }
-    .btn-galaxy-sm {
-      background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600;
-      font-size: 0.82rem;
-      padding: 7px 16px;
-      transition: all 0.2s;
-      box-shadow: 0 2px 12px rgba(139,92,246,0.3);
-    }
-    .btn-galaxy-sm:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(139,92,246,0.45); color:#fff; }
+    /* ── Alerts ── */
+    .alert-info { background: var(--accent-light); border: 1px solid #bfdbfe; color: #1e40af; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
+    .alert-success { background: var(--success-light); border: 1px solid #bbf7d0; color: #15803d; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
+    .alert-warning { background: var(--warning-light); border: 1px solid #fde68a; color: #92400e; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
+    .alert-danger { background: var(--danger-light); border: 1px solid #fecaca; color: #991b1b; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
 
-    /* ── Galaxy card ── */
-    .galaxy-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-    .galaxy-card-header {
-      background: var(--surface2);
-      border-bottom: 1px solid var(--border);
-      padding: 18px 24px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .galaxy-card-body { padding: 24px; }
+    /* ── Step 1: Azure ── */
+    .setup-steps { display: flex; flex-direction: column; }
+    .setup-step { display: flex; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+    .setup-step:last-child { border-bottom: none; padding-bottom: 0; }
+    .setup-step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .setup-step h5 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+    .setup-step p { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.6; }
+    .path-pill { display: inline-flex; align-items: center; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 5px; padding: 1px 8px; font-size: 12px; font-family: monospace; color: #0f172a; margin: 1px 2px; }
+    .scope-tag { display: inline-block; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-family: monospace; color: #334155; margin: 2px; }
+    .perm-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .perm-card { flex: 1; min-width: 200px; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .perm-card h6 { font-size: 13px; font-weight: 600; margin: 0 0 4px; }
+    .perm-card p { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+    .kbd { display: inline-block; background: #f1f5f9; border: 1px solid #e2e8f0; border-bottom-width: 2px; border-radius: 4px; padding: 1px 7px; font-family: monospace; font-size: 12px; color: #334155; }
 
-    /* ── Galaxy input ── */
-    .galaxy-input {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 0.9rem;
-      transition: border-color 0.2s;
-      width: 100%;
-    }
-    .galaxy-input:focus {
-      outline: none;
-      border-color: var(--purple);
-      background: var(--surface2);
-      box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
-      color: var(--text);
-    }
-    .galaxy-input::placeholder { color: var(--dim); }
-    .galaxy-input.font-monospace { font-family: 'Courier New', monospace; font-size: 0.85rem; }
-    .galaxy-label {
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 6px;
-      display: block;
-      font-family: 'Space Grotesk', sans-serif;
-    }
-    .galaxy-select {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 10px;
-      padding: 9px 14px;
-      font-size: 0.88rem;
-      width: 100%;
-      -webkit-appearance: none;
-    }
-    .galaxy-select:focus { outline: none; border-color: var(--purple); }
-    .galaxy-select option { background: #1a2040; }
+    /* ── Step 2: Connect ── */
+    .signin-options { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .status-dot.connected { background: var(--success); box-shadow: 0 0 0 3px #bbf7d0; }
+    .badge-read { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-write { background: var(--success-light); color: #15803d; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 
-    /* ── Landing nav ── */
-    #landing-nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 1000;
-      padding: 16px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      background: rgba(5,8,16,0.7);
-      border-bottom: 1px solid var(--border);
-    }
-    .logo-icon {
-      width: 34px; height: 34px;
-      background: linear-gradient(135deg, var(--purple), var(--blue));
-      border-radius: 8px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      margin-right: 10px;
-      flex-shrink: 0;
-    }
-    .logo-text {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      font-size: 1.15rem;
-      color: var(--text);
-    }
+    /* ── Step 3: Config ── */
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .config-grid { grid-template-columns: 1fr; } }
+    .rules-panel { border: 1px solid var(--border); border-radius: 8px; margin-top: 16px; }
+    .rules-toggle { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; font-size: 13px; font-weight: 600; border-radius: 8px; }
+    .rules-toggle:hover { background: #f8fafc; }
+    .rules-body { padding: 16px; border-top: 1px solid var(--border); display: none; }
+    .rules-body.open { display: block; }
+    .rule-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .rule-row label { margin: 0; flex: 1; font-weight: 500; font-size: 13px; cursor: pointer; }
+    .form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
+    .custom-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+    .custom-row { display: flex; gap: 6px; align-items: center; }
+    .custom-row input { flex: 1; font-size: 12px; }
+    .add-row-btn { background: none; border: 1px dashed #94a3b8; color: #64748b; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; margin-top: 4px; }
+    .add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .rm-row-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0 4px; font-size: 16px; line-height: 1; }
+    .rm-row-btn:hover { color: var(--danger); }
+    .len-row { display: flex; align-items: center; gap: 12px; }
+    .len-row input[type=range] { flex: 1; accent-color: var(--accent); }
+    .len-val { font-weight: 700; color: var(--accent); min-width: 28px; text-align: center; }
+    hr.divider { border-color: var(--border); margin: 16px 0; }
 
-    /* ── Hero ── */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 120px 24px 60px;
-      position: relative;
-      z-index: 1;
-    }
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 600px; height: 600px;
-      background: radial-gradient(ellipse at center, rgba(139,92,246,0.18) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .hero-label {
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--purple);
-      margin-bottom: 20px;
-      border: 1px solid var(--border2);
-      padding: 6px 16px;
-      border-radius: 20px;
-      display: inline-block;
-    }
-    .hero h1 {
-      font-size: clamp(2.4rem, 6vw, 4.2rem);
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 24px;
-    }
-    .hero p.subtitle {
-      font-size: 1.1rem;
-      color: var(--muted);
-      max-width: 540px;
-      line-height: 1.7;
-      margin-bottom: 36px;
-    }
-    .step-pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 40px; }
-    .step-pill {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 8px 18px;
-      font-size: 0.82rem;
-      color: var(--muted);
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 500;
-    }
-    .hero-cta { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
-    .scroll-hint {
-      position: absolute;
-      bottom: 36px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: var(--dim);
-      font-size: 1.4rem;
-      animation: bounce 2s infinite;
-    }
-    @keyframes bounce {
-      0%,100% { transform: translateX(-50%) translateY(0); }
-      50% { transform: translateX(-50%) translateY(10px); }
-    }
+    /* ── Demo table ── */
+    .demo-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .demo-table th { background: #f1f5f9; padding: 7px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; border-bottom: 2px solid var(--border); }
+    .demo-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); font-family: monospace; font-size: 12px; }
+    .demo-table .arrow { color: #94a3b8; font-family: sans-serif; font-size: 12px; width: 20px; }
+    .demo-table .after { color: var(--success); font-weight: 600; }
+    .demo-table tr.temp .after { color: var(--danger); }
 
-    /* ── Landing sections ── */
-    .section-wrap {
-      position: relative;
-      z-index: 1;
-      padding: 80px 24px;
-    }
-    .section-label {
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--purple);
-      margin-bottom: 14px;
-    }
-    .section-heading {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
-      font-weight: 800;
-      margin-bottom: 16px;
-    }
-    .section-alt { background: rgba(13,18,36,0.6); }
+    /* ── Step 4: Scan ── */
+    #scan-log { background: #0f172a; color: #94a3b8; font-family: monospace; font-size: 12px; border-radius: 8px; padding: 14px; min-height: 60px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; }
+    .progress-wrap { margin-top: 10px; display: none; }
+    .progress-bar-track { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--accent); transition: width .3s; border-radius: 2px; }
 
-    /* ── How it works ── */
-    .how-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 28px 24px;
-      height: 100%;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .how-card:hover { border-color: var(--border2); transform: translateY(-3px); }
-    .how-num {
-      width: 44px; height: 44px;
-      background: linear-gradient(135deg, var(--purple), var(--blue));
-      border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 800;
-      font-size: 1.1rem;
-      color: #fff;
-      margin-bottom: 18px;
-    }
-    .how-card h5 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; margin-bottom: 10px; }
-    .how-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin: 0; }
+    /* ── Step 5: Review ── */
+    .stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .stat-card { flex: 1; min-width: 100px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .stat-card .val { font-size: 22px; font-weight: 700; }
+    .stat-card .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .stat-card.s-success .val { color: var(--success); }
+    .stat-card.s-warning .val { color: var(--warning); }
+    .stat-card.s-danger .val { color: var(--danger); }
 
-    /* ── Naming rules ── */
-    .rule-badge {
-      display: inline-block;
-      border-radius: 20px;
-      padding: 5px 14px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      margin: 4px;
-      font-family: 'Space Grotesk', sans-serif;
-    }
-    .rule-badge-purple { background: rgba(139,92,246,0.15); color: var(--purple); border: 1px solid rgba(139,92,246,0.3); }
-    .rule-badge-blue   { background: rgba(79,114,255,0.15); color: var(--blue);   border: 1px solid rgba(79,114,255,0.3); }
-    .rule-badge-teal   { background: rgba(34,211,238,0.15); color: var(--teal);   border: 1px solid rgba(34,211,238,0.3); }
-    .rule-badge-pink   { background: rgba(244,114,182,0.15); color: var(--pink);  border: 1px solid rgba(244,114,182,0.3); }
-    .rule-badge-green  { background: rgba(74,222,128,0.15); color: var(--green);  border: 1px solid rgba(74,222,128,0.3); }
+    .review-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+    .review-bar .form-control { font-size: 12px; padding: 6px 10px; max-width: 220px; }
+    .review-bar .form-select { font-size: 12px; padding: 6px 10px; max-width: 180px; }
+    .filter-check { font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 
-    .transform-demo {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-    .transform-demo-header {
-      background: var(--surface2);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 20px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-    .demo-file-row {
-      padding: 16px 20px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.82rem;
-    }
-    .demo-file-before { background: rgba(255,255,255,0.03); color: var(--dim); }
-    .demo-file-after {
-      background: rgba(74,222,128,0.05);
-      color: var(--green);
-      border-top: 1px solid rgba(74,222,128,0.15);
-    }
-    .demo-arrow {
-      text-align: center;
-      padding: 12px;
-      color: var(--purple);
-      font-size: 1.2rem;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: var(--surface2);
-    }
-    .demo-rules {
-      padding: 12px 20px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      border-top: 1px solid var(--border);
-      background: var(--surface2);
-    }
-    .demo-footer {
-      padding: 12px 20px;
-      border-top: 1px solid var(--border);
-      font-size: 0.78rem;
-      color: var(--muted);
-      font-family: 'Space Grotesk', sans-serif;
-    }
-    .demo-footer .chars-ok { color: var(--green); font-weight: 700; }
+    /* Spreadsheet */
+    .sheet-wrap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .sheet-scroll { overflow-x: auto; overflow-y: auto; max-height: 500px; }
+    table.sheet { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+    table.sheet thead th { position: sticky; top: 0; background: #f8fafc; border-bottom: 2px solid var(--border); padding: 8px 10px; font-weight: 600; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; cursor: pointer; user-select: none; z-index: 1; }
+    table.sheet thead th:hover { background: #f1f5f9; }
+    table.sheet td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+    table.sheet tbody tr:hover td { background: #f8fafc; }
+    table.sheet tbody tr.row-approved td { background: #f0fdf4; }
+    table.sheet tbody tr.row-temp td { background: var(--danger-light); }
+    .col-n { width: 42px; text-align: right; color: var(--muted); }
+    .col-folder { width: 140px; }
+    .col-orig { width: 210px; font-family: monospace; color: #374151; }
+    .col-sug { width: 210px; }
+    .col-chars { width: 52px; text-align: center; }
+    .col-ok { width: 52px; text-align: center; }
+    .chars-ok { display: inline-block; background: #f0fdf4; color: #15803d; border-radius: 4px; padding: 1px 5px; font-size: 11px; font-weight: 600; }
+    .chars-warn { display: inline-block; background: var(--warning-light); color: #92400e; border-radius: 4px; padding: 1px 5px; font-size: 11px; font-weight: 600; }
+    .name-cell { display: flex; align-items: center; gap: 3px; }
+    .name-text { flex: 1; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+    .edit-btn { background: none; border: none; color: #cbd5e1; padding: 0 3px; cursor: pointer; font-size: 12px; flex-shrink: 0; opacity: 0; }
+    tr:hover .edit-btn { opacity: 1; }
+    .edit-btn:hover { color: var(--accent); }
+    .name-edit-input { border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px; font-size: 12px; font-family: monospace; width: 100%; outline: none; }
+    .approve-cb { cursor: pointer; width: 15px; height: 15px; accent-color: var(--success); }
+    .sheet-foot { padding: 8px 12px; background: #f8fafc; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .page-btns { display: flex; gap: 3px; }
+    .page-btn { background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; }
+    .page-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .page-btn.cur { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .bulk-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+    .claude-btn { background: #7c3aed; color: #fff; border: none; border-radius: 7px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .claude-btn:hover { background: #6d28d9; }
+    .empty-msg { text-align: center; padding: 36px 16px; color: var(--muted); font-size: 13px; }
 
-    .feature-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 24px;
-    }
-    .feature-card h6 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; margin-bottom: 8px; }
-    .feature-card p { color: var(--muted); font-size: 0.88rem; margin: 0; }
+    /* ── Step 6: Rename ── */
+    .folder-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .folder-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 14px; cursor: pointer; transition: all .15s; }
+    .folder-card:hover { border-color: var(--accent); background: var(--accent-light); }
+    .folder-card.sel { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 2px rgba(37,99,235,.12); }
+    .fc-icon { font-size: 20px; color: var(--accent); padding-top: 2px; }
+    .fc-name { font-weight: 600; font-size: 14px; }
+    .fc-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .fc-bar { height: 3px; background: #e5e7eb; border-radius: 2px; overflow: hidden; margin-top: 6px; }
+    .fc-fill { height: 100%; background: var(--success); border-radius: 2px; }
+    .rename-log-wrap { margin-top: 14px; display: none; }
+    .rename-log { background: #0f172a; color: #94a3b8; font-family: monospace; font-size: 12px; border-radius: 8px; padding: 12px; max-height: 140px; overflow-y: auto; }
+    .log-ok { color: #4ade80; }
+    .log-err { color: #f87171; }
 
-    /* ── Requirement cards ── */
-    .req-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 28px 24px;
-      text-align: center;
-      height: 100%;
-    }
-    .req-icon {
-      width: 56px; height: 56px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.6rem;
-      margin: 0 auto 18px;
-    }
-    .req-card h5 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; margin-bottom: 10px; }
-    .req-card p { color: var(--muted); font-size: 0.88rem; margin: 0; line-height: 1.6; }
-
-    /* ── FAQ accordion ── */
-    .galaxy-accordion .accordion-item {
-      background: var(--surface);
-      border: 1px solid var(--border) !important;
-      border-radius: 12px !important;
-      margin-bottom: 10px;
-      overflow: hidden;
-    }
-    .galaxy-accordion .accordion-button {
-      background: var(--surface2);
-      color: var(--text);
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600;
-      font-size: 0.92rem;
-      border: none;
-      padding: 18px 22px;
-    }
-    .galaxy-accordion .accordion-button:not(.collapsed) {
-      background: var(--surface2);
-      color: var(--purple);
-      box-shadow: none;
-    }
-    .galaxy-accordion .accordion-button::after {
-      filter: invert(1) brightness(0.6);
-    }
-    .galaxy-accordion .accordion-button:not(.collapsed)::after {
-      filter: invert(1) brightness(0.8) sepia(1) saturate(5) hue-rotate(240deg);
-    }
-    .galaxy-accordion .accordion-body {
-      background: var(--surface);
-      color: var(--muted);
-      font-size: 0.9rem;
-      line-height: 1.7;
-      padding: 18px 22px;
-    }
-
-    /* ── Footer CTA ── */
-    .footer-cta {
-      background: linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(79,114,255,0.15) 100%);
-      border-top: 1px solid var(--border2);
-      border-bottom: 1px solid var(--border2);
-      padding: 80px 24px;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-    }
-    .footer-cta h2 { font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: clamp(1.8rem,4vw,3rem); margin-bottom: 20px; }
-    .site-footer {
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 24px;
-      text-align: center;
-      color: var(--dim);
-      font-size: 0.82rem;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* ── Page layers ── */
-    #page-landing { position: relative; z-index: 1; }
-    #page-wizard  { position: relative; z-index: 1; }
-
-    /* ── Scroll reveal (below-the-fold only — hero is always visible) ── */
-    .reveal {
-      opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.55s ease, transform 0.55s ease;
-    }
-    .reveal.visible { opacity: 1; transform: translateY(0); }
-    .reveal-delay-1 { transition-delay: 0.1s; }
-    .reveal-delay-2 { transition-delay: 0.2s; }
-    .reveal-delay-3 { transition-delay: 0.3s; }
-    .reveal-delay-4 { transition-delay: 0.4s; }
-
-    /* ═══════════ WIZARD ═══════════ */
-    #page-wizard { display: none; }
-    .hidden { display: none !important; }
-
-    /* Wizard top bar */
-    #wizard-topbar {
-      position: sticky;
-      top: 0;
-      z-index: 900;
-      padding: 14px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      background: rgba(5,8,16,0.85);
-      border-bottom: 1px solid var(--border);
-    }
-
-    /* Step nav */
-    .wizard-wrap { max-width: 820px; margin: 0 auto; padding: 32px 16px 80px; position: relative; z-index: 1; }
-    .step-nav { display: flex; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
-    .step-nav-pill {
-      flex: 1;
-      min-width: 100px;
-      padding: 10px 8px;
-      text-align: center;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.78rem;
-      font-weight: 600;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--dim);
-      cursor: default;
-      transition: all 0.2s;
-    }
-    .step-nav-pill .num { display: block; font-size: 1rem; margin-bottom: 2px; }
-    .step-nav-pill.done {
-      background: rgba(74,222,128,0.08);
-      border-color: rgba(74,222,128,0.25);
-      color: var(--green);
-    }
-    .step-nav-pill.active {
-      background: linear-gradient(135deg, rgba(139,92,246,0.25), rgba(79,114,255,0.25));
-      border-color: var(--purple);
-      color: var(--text);
-      box-shadow: 0 0 16px rgba(139,92,246,0.25);
-    }
-
-    /* Stat boxes */
-    .stat-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px 16px;
-      text-align: center;
-    }
-    .stat-num {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 2rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, var(--purple), var(--teal));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      display: block;
-    }
-    .stat-lbl { font-size: 0.75rem; color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-weight: 500; }
-
-    /* Scan log */
-    #scan-log {
-      font-family: 'Courier New', monospace;
-      font-size: 0.8rem;
-      background: #030612;
-      color: #4ade80;
-      padding: 18px;
-      border-radius: 12px;
-      min-height: 80px;
-      border: 1px solid rgba(74,222,128,0.15);
-      position: relative;
-    }
-    #scan-log::after {
-      content: '▋';
-      animation: blink 1s step-end infinite;
-      margin-left: 2px;
-    }
-    @keyframes blink { 50% { opacity: 0; } }
-
-    /* Progress bar */
-    .galaxy-progress {
-      height: 8px;
-      background: var(--surface2);
-      border-radius: 4px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-    .galaxy-progress-bar {
-      height: 100%;
-      background: linear-gradient(90deg, var(--purple), var(--blue));
-      border-radius: 4px;
-      transition: width 0.4s ease;
-      background-size: 200% 100%;
-      animation: shimmer 2s linear infinite;
-    }
-    @keyframes shimmer {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-    .galaxy-progress-bar.striped-animated {
-      background-image: repeating-linear-gradient(
-        45deg,
-        rgba(255,255,255,0.1) 0,
-        rgba(255,255,255,0.1) 10px,
-        transparent 10px,
-        transparent 20px
-      ), linear-gradient(90deg, var(--purple), var(--blue));
-    }
-
-    /* Review table */
-    #files-table { color: var(--text); }
-    #files-table th {
-      position: sticky;
-      top: 0;
-      background: var(--surface2);
-      z-index: 2;
-      font-size: 0.78rem;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600;
-      color: var(--muted);
-      border-bottom: 1px solid var(--border) !important;
-      padding: 12px 10px;
-    }
-    #files-table td {
-      font-size: 0.82rem;
-      vertical-align: middle;
-      border-color: var(--border) !important;
-      color: var(--text);
-      padding: 10px;
-    }
-    #files-table tbody tr { background: transparent; }
-    #files-table tbody tr:hover { background: rgba(139,92,246,0.06); }
-    .over30-badge {
-      background: rgba(244,114,182,0.15);
-      color: var(--pink);
-      font-size: 0.68rem;
-      border-radius: 4px;
-      padding: 2px 6px;
-      margin-left: 4px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600;
-      border: 1px solid rgba(244,114,182,0.25);
-    }
-
-    /* form-switch galaxy */
-    .form-check-input:checked {
-      background-color: var(--purple);
-      border-color: var(--purple);
-    }
-    .form-check-input:focus { box-shadow: 0 0 0 3px rgba(139,92,246,0.2); }
-    .form-check-label { color: var(--muted); font-size: 0.85rem; }
-
-    /* Folder cards */
-    .folder-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px;
-      cursor: pointer;
-      transition: all 0.18s;
-    }
-    .folder-card:hover { border-color: var(--border2); transform: translateY(-2px); }
-    .folder-card.selected {
-      border-color: var(--purple);
-      background: rgba(139,92,246,0.08);
-      box-shadow: 0 0 18px rgba(139,92,246,0.2);
-    }
-    .folder-card h6 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-    .folder-card .folder-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; }
-
-    /* Redirect URI box */
-    #redirect-uri-display {
-      font-family: 'Courier New', monospace;
-      font-size: 0.82rem;
-      background: rgba(139,92,246,0.08);
-      border: 1px dashed var(--purple);
-      border-radius: 8px;
-      padding: 8px 14px;
-      color: var(--purple);
-      display: block;
-      margin-top: 8px;
-      user-select: all;
-    }
-
-    /* Portal mockup */
-    .portal-mockup {
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid #d0d0d0;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      font-size: 12px;
-      background: #fff;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    }
-    .portal-topbar {
-      background: #0078d4;
-      color: #fff;
-      padding: 8px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .portal-breadcrumb {
-      background: #faf9f8;
-      border-bottom: 1px solid #e5e5e5;
-      padding: 6px 14px;
-      font-size: 11px;
-      color: #333;
-    }
-    .portal-breadcrumb a { color: #0078d4; text-decoration: none; }
-    .portal-body {
-      display: flex;
-      min-height: 220px;
-      background: #fff;
-    }
-    .portal-sidebar {
-      width: 160px;
-      background: #f5f5f5;
-      border-right: 1px solid #e5e5e5;
-      padding: 10px 0;
-      flex-shrink: 0;
-    }
-    .portal-sidebar-item {
-      padding: 7px 14px;
-      font-size: 11.5px;
-      color: #555;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .portal-sidebar-item.active-item { background: #e3f2fd; color: #0078d4; font-weight: 600; }
-    .portal-sidebar-item .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-    .portal-content { flex: 1; padding: 16px; }
-    .portal-content h3 { font-size: 14px; font-weight: 600; color: #1a1a1a; margin-bottom: 14px; }
-    .portal-field { margin-bottom: 12px; }
-    .portal-field label { display: block; font-size: 11px; color: #555; margin-bottom: 4px; font-weight: 500; }
-    .portal-field-value {
-      border: 1px solid #d0d0d0;
-      border-radius: 3px;
-      padding: 6px 10px;
-      font-size: 12px;
-      color: #333;
-      background: #fff;
-    }
-    .portal-field-value.highlighted { border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0,120,212,0.2); }
-    .portal-radio { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-    .portal-radio input[type=radio] { margin-top: 2px; accent-color: #0078d4; }
-    .portal-radio-label { font-size: 11.5px; color: #333; }
-    .portal-radio-label .sub { font-size: 10.5px; color: #888; display: block; }
-    .portal-btn {
-      background: #0078d4;
-      color: #fff;
-      border: none;
-      border-radius: 3px;
-      padding: 6px 16px;
-      font-size: 12px;
-      margin-right: 6px;
-      cursor: pointer;
-    }
-    .portal-btn-outline {
-      background: #fff;
-      color: #333;
-      border: 1px solid #d0d0d0;
-      border-radius: 3px;
-      padding: 5px 14px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .portal-copy-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: #f5f5f5;
-      border: 1px solid #d0d0d0;
-      border-radius: 4px;
-      padding: 8px 12px;
-      font-family: monospace;
-      font-size: 11px;
-    }
-    .portal-copy-row .copy-btn {
-      background: #0078d4;
-      color: #fff;
-      border: none;
-      border-radius: 3px;
-      padding: 3px 8px;
-      font-size: 10px;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    .portal-callout-yellow {
-      background: #fff8e1;
-      border: 1px solid #ffc107;
-      border-radius: 4px;
-      padding: 8px 12px;
-      font-size: 11.5px;
-      color: #7a5200;
-      margin-top: 10px;
-      display: flex;
-      gap: 8px;
-    }
-    .portal-perm-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-    .portal-perm-table th { background: #f5f5f5; padding: 6px 10px; text-align: left; color: #555; font-weight: 600; border-bottom: 1px solid #e5e5e5; }
-    .portal-perm-table td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; color: #333; }
-    .portal-check { color: #107c10; font-weight: 700; font-size: 13px; }
-    .portal-perm-add { color: #0078d4; font-size: 11px; margin-top: 8px; cursor: pointer; }
-
-    /* Portal slide carousel */
-    .portal-slide { display: none; }
-    .portal-slide.active { display: block; }
-    .slide-dots { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
-    .slide-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--dim);
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .slide-dot.active { background: var(--purple); }
-
-    /* Abbrev dynamic rows */
-    .abbrev-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-    .abbrev-row input { flex: 1; }
-    .abbrev-row .rm-btn {
-      background: rgba(244,114,182,0.1);
-      color: var(--pink);
-      border: 1px solid rgba(244,114,182,0.2);
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-    .abbrev-row .rm-btn:hover { background: rgba(244,114,182,0.2); }
-
-    /* Config details panel */
-    details.config-panel { margin-top: 20px; }
-    details.config-panel summary {
-      cursor: pointer;
-      padding: 14px 18px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600;
-      font-size: 0.9rem;
-      color: var(--text);
-      list-style: none;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    details.config-panel summary::-webkit-details-marker { display: none; }
-    details.config-panel summary::before { content: '›'; font-size: 1.2rem; transition: transform 0.2s; display: inline-block; }
-    details.config-panel[open] summary::before { transform: rotate(90deg); }
-    .config-panel-body {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-top: none;
-      border-radius: 0 0 10px 10px;
-      padding: 20px;
-    }
-
-    /* Galaxy range input */
-    input[type=range].galaxy-range { accent-color: var(--purple); width: 100%; }
-
-    /* Alert (galaxy) */
-    .galaxy-alert {
-      background: rgba(244,114,182,0.1);
-      border: 1px solid rgba(244,114,182,0.3);
-      color: var(--pink);
-      border-radius: 10px;
-      padding: 12px 16px;
-      font-size: 0.88rem;
-    }
-
-    /* Rename progress badge */
-    .badge-running { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; font-family: 'Space Grotesk', sans-serif; font-weight: 600; }
-    .badge-done    { background: rgba(74,222,128,0.15); color: var(--green); border: 1px solid rgba(74,222,128,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; font-family: 'Space Grotesk', sans-serif; font-weight: 600; }
-    .badge-error   { background: rgba(244,114,182,0.15); color: var(--pink); border: 1px solid rgba(244,114,182,0.3); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; font-family: 'Space Grotesk', sans-serif; font-weight: 600; }
-
-    /* Scrollable table container */
-    .table-scroll-wrap { overflow: auto; max-height: 460px; }
-
-    /* Card footer galaxy */
-    .galaxy-card-footer {
-      background: var(--surface2);
-      border-top: 1px solid var(--border);
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    /* Rename exec btn */
-    .btn-exec-rename {
-      background: linear-gradient(135deg, #dc2626, #9f1239);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: 10px 28px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      font-size: 0.9rem;
-      transition: all 0.2s;
-    }
-    .btn-exec-rename:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(220,38,38,0.4); color: #fff; }
-    .btn-exec-rename:disabled { opacity: 0.5; transform: none; }
+    /* ── Toast ── */
+    #toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast-item { background: #1e293b; color: #f1f5f9; border-radius: 8px; padding: 10px 16px; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.2); opacity: 0; transition: opacity .2s; }
+    .toast-item.show { opacity: 1; }
   </style>
 </head>
 <body>
 
-<!-- Stars canvas -->
-<canvas id="stars-canvas"></canvas>
-
-<!-- ═══════════════════════════ LANDING ═══════════════════════════ -->
-<div id="page-landing">
-
-  <!-- Fixed nav -->
-  <nav id="landing-nav">
-    <div class="d-flex align-items-center">
-      <div class="logo-icon">✦</div>
-      <span class="logo-text">FileForge</span>
-    </div>
-    <button class="btn-galaxy" onclick="goToWizard()" style="padding:9px 22px; font-size:0.88rem;">
-      Launch App →
-    </button>
+<header id="app-header">
+  <div class="logo">File<span>Forge</span></div>
+  <nav class="step-nav">
+    <a href="#s1" class="step-link active" id="nav-1"><span class="sn">1</span><span>Azure Setup</span></a>
+    <a href="#s2" class="step-link" id="nav-2"><span class="sn">2</span><span>Connect</span></a>
+    <a href="#s3" class="step-link" id="nav-3"><span class="sn">3</span><span>Configure</span></a>
+    <a href="#s4" class="step-link" id="nav-4"><span class="sn">4</span><span>Scan</span></a>
+    <a href="#s5" class="step-link" id="nav-5"><span class="sn">5</span><span>Review</span></a>
+    <a href="#s6" class="step-link" id="nav-6"><span class="sn">6</span><span>Rename</span></a>
   </nav>
+  <span id="user-chip"><i class="bi bi-person-circle me-1"></i><span id="user-name-chip"></span></span>
+  <button id="sign-out-btn" style="display:none" onclick="signOut()"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button>
+</header>
 
-  <!-- Hero -->
-  <section class="hero">
-    <div class="hero-label">✦ SharePoint File Management</div>
-    <h1>
-      Rename thousands of files<br>
-      <span class="gradient-text">in minutes, not months.</span>
-    </h1>
-    <p class="subtitle">
-      Scan your SharePoint library, get smart name suggestions powered by custom rules, approve what looks right, and push changes via the Microsoft Graph API — all without touching a single file manually.
-    </p>
-    <div class="step-pills">
-      <span class="step-pill"><i class="bi bi-plug me-1" style="color:var(--purple)"></i>Connect M365</span>
-      <span class="step-pill"><i class="bi bi-search me-1" style="color:var(--blue)"></i>Scan Library</span>
-      <span class="step-pill"><i class="bi bi-lightbulb me-1" style="color:var(--teal)"></i>Smart Suggestions</span>
-      <span class="step-pill"><i class="bi bi-check2-all me-1" style="color:var(--green)"></i>Approve &amp; Apply</span>
-    </div>
-    <div class="hero-cta">
-      <button class="btn-galaxy btn-lg" onclick="goToWizard()">🚀 Get Started Free</button>
-      <a href="#section-how" class="btn-galaxy-outline btn-lg" onclick="smoothTo('section-how',event)">See How It Works</a>
-    </div>
-    <div class="scroll-hint"><i class="bi bi-chevron-down"></i></div>
-  </section>
+<div id="toast-wrap"></div>
 
-  <!-- How It Works -->
-  <section class="section-wrap section-alt" id="section-how">
-    <div class="container" style="max-width:1100px">
-      <div class="text-center mb-5 reveal">
-        <div class="section-label">Process</div>
-        <h2 class="section-heading">Four steps to organized files</h2>
-      </div>
-      <div class="row g-4">
-        <div class="col-md-3 col-sm-6 reveal">
-          <div class="how-card">
-            <div class="how-num">1</div>
-            <h5>Register Azure App</h5>
-            <p>Create a free app registration in Azure Portal — takes about 5 minutes. No IT required after this step.</p>
-          </div>
-        </div>
-        <div class="col-md-3 col-sm-6 reveal reveal-delay-1">
-          <div class="how-card">
-            <div class="how-num" style="background:linear-gradient(135deg,var(--blue),var(--teal))">2</div>
-            <h5>Connect &amp; Configure</h5>
-            <p>Sign in with your Microsoft 365 account and point FileForge at your SharePoint library.</p>
-          </div>
-        </div>
-        <div class="col-md-3 col-sm-6 reveal reveal-delay-2">
-          <div class="how-card">
-            <div class="how-num" style="background:linear-gradient(135deg,var(--teal),var(--green))">3</div>
-            <h5>Review Suggestions</h5>
-            <p>Browse AI-suggested names with your custom rules applied. Edit anything before approving.</p>
-          </div>
-        </div>
-        <div class="col-md-3 col-sm-6 reveal reveal-delay-3">
-          <div class="how-card">
-            <div class="how-num" style="background:linear-gradient(135deg,var(--pink),var(--purple))">4</div>
-            <h5>Apply Renames</h5>
-            <p>Push approved renames folder-by-folder via Microsoft Graph API. SharePoint version history keeps everything reversible.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+<main>
 
-  <!-- Naming Rules -->
-  <section class="section-wrap" id="section-naming">
-    <div class="container" style="max-width:1100px">
-      <div class="row g-5 align-items-center">
-        <div class="col-lg-5 reveal">
-          <div class="section-label">Intelligence</div>
-          <h2 class="section-heading">Rules that actually work</h2>
-          <p style="color:var(--muted); line-height:1.7; margin-bottom:24px">
-            A layered, configurable pipeline strips noise, expands org names, normalizes dates, and abbreviates long words — hitting a 30-character target without losing meaning.
-          </p>
-          <div>
-            <span class="rule-badge rule-badge-purple">Title Case</span>
-            <span class="rule-badge rule-badge-blue">Acronym Preservation</span>
-            <span class="rule-badge rule-badge-teal">Word Abbreviation</span>
-            <span class="rule-badge rule-badge-pink">Org Replacement</span>
-            <span class="rule-badge rule-badge-green">Date Normalization</span>
-            <span class="rule-badge rule-badge-purple">30-Char Target</span>
-            <span class="rule-badge rule-badge-blue">Filler Removal</span>
-            <span class="rule-badge rule-badge-teal">CamelCase Split</span>
-          </div>
-        </div>
-        <div class="col-lg-7 reveal reveal-delay-1">
-          <div class="transform-demo">
-            <div class="transform-demo-header">Live Transformation Example</div>
-            <div class="demo-file-row demo-file-before">
-              <span style="color:var(--dim); font-size:0.72rem; display:block; margin-bottom:4px">BEFORE</span>
-              Q3_Financial_Report_Acme_Corporation_2024_FINAL_v2.docx
-            </div>
-            <div class="demo-arrow"><i class="bi bi-arrow-down-circle-fill"></i></div>
-            <div class="demo-rules">
-              <span class="rule-badge rule-badge-pink" style="font-size:0.72rem">Org → ACME</span>
-              <span class="rule-badge rule-badge-teal" style="font-size:0.72rem">Fin Rpt (abbrev)</span>
-              <span class="rule-badge rule-badge-blue" style="font-size:0.72rem">Date normalized</span>
-              <span class="rule-badge rule-badge-purple" style="font-size:0.72rem">Fillers removed</span>
-            </div>
-            <div class="demo-file-row demo-file-after">
-              <span style="color:rgba(74,222,128,0.6); font-size:0.72rem; display:block; margin-bottom:4px">AFTER</span>
-              ACME Q3 2024 Fin Rpt Final.docx
-            </div>
-            <div class="demo-footer">
-              55 chars → <span class="chars-ok">26 chars ✓ Under 30-char target</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="row g-4 mt-4">
-        <div class="col-md-4 reveal">
-          <div class="feature-card">
-            <div class="how-num" style="background:linear-gradient(135deg,var(--purple),var(--pink)); margin-bottom:16px; width:40px; height:40px; font-size:0.95rem"><i class="bi bi-sliders"></i></div>
-            <h6>Fully Customizable</h6>
-            <p>Add your own acronyms, word abbreviations, and org name replacements directly in the app — no code changes needed.</p>
-          </div>
-        </div>
-        <div class="col-md-4 reveal reveal-delay-1">
-          <div class="feature-card">
-            <div class="how-num" style="background:linear-gradient(135deg,var(--blue),var(--teal)); margin-bottom:16px; width:40px; height:40px; font-size:0.95rem"><i class="bi bi-building"></i></div>
-            <h6>Organization Names</h6>
-            <p>Map long org names like "South Alamo Regional Alliance" to short acronyms like SARAH — across thousands of files instantly.</p>
-          </div>
-        </div>
-        <div class="col-md-4 reveal reveal-delay-2">
-          <div class="feature-card">
-            <div class="how-num" style="background:linear-gradient(135deg,var(--green),var(--teal)); margin-bottom:16px; width:40px; height:40px; font-size:0.95rem"><i class="bi bi-eye"></i></div>
-            <h6>Preview Before Applying</h6>
-            <p>Every suggested name is shown side-by-side with the original. Approve individually, by folder, or in bulk.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- What You'll Need -->
-  <section class="section-wrap section-alt" id="section-need">
-    <div class="container" style="max-width:900px">
-      <div class="text-center mb-5 reveal">
-        <div class="section-label">Requirements</div>
-        <h2 class="section-heading">What you'll need</h2>
-      </div>
-      <div class="row g-4">
-        <div class="col-md-4 reveal">
-          <div class="req-card">
-            <div class="req-icon" style="background:rgba(79,114,255,0.15)">
-              <i class="bi bi-microsoft" style="color:var(--blue)"></i>
-            </div>
-            <h5>M365 Account</h5>
-            <p>A Microsoft 365 account with access to the SharePoint site you want to rename files in.</p>
-          </div>
-        </div>
-        <div class="col-md-4 reveal reveal-delay-1">
-          <div class="req-card">
-            <div class="req-icon" style="background:rgba(139,92,246,0.15)">
-              <i class="bi bi-shield-lock" style="color:var(--purple)"></i>
-            </div>
-            <h5>Azure Admin Access</h5>
-            <p>Needed once for the app registration and granting admin consent to API permissions. After that, regular users can run the app.</p>
-          </div>
-        </div>
-        <div class="col-md-4 reveal reveal-delay-2">
-          <div class="req-card">
-            <div class="req-icon" style="background:rgba(34,211,238,0.15)">
-              <i class="bi bi-link-45deg" style="color:var(--teal)"></i>
-            </div>
-            <h5>SharePoint Site URL</h5>
-            <p>The URL of your SharePoint site, e.g. <code style="color:var(--teal); font-size:0.78rem">https://yourorg.sharepoint.com/sites/SiteName</code></p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section class="section-wrap" id="section-faq" style="background:rgba(5,8,16,0.8)">
-    <div class="container" style="max-width:760px">
-      <div class="text-center mb-5 reveal">
-        <div class="section-label">FAQ</div>
-        <h2 class="section-heading">Common questions</h2>
-      </div>
-      <div class="accordion galaxy-accordion reveal" id="faq-accordion">
-        <div class="accordion-item">
-          <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-              Is my data stored on your servers?
-            </button>
-          </h2>
-          <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faq-accordion">
-            <div class="accordion-body">No. FileForge never stores or transmits your file data outside of your Microsoft 365 tenant. All file operations happen directly between your browser and the Microsoft Graph API. Your access token lives only in browser memory for the duration of your session.</div>
-          </div>
-        </div>
-        <div class="accordion-item">
-          <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-              Can I undo a rename?
-            </button>
-          </h2>
-          <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faq-accordion">
-            <div class="accordion-body">Yes. SharePoint maintains full version history for all files. If a rename causes any issues, you can restore the previous filename through SharePoint's built-in version history interface. We also recommend exporting a CSV of suggested names before applying so you have a record.</div>
-          </div>
-        </div>
-        <div class="accordion-item">
-          <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-              Do I need IT involved?
-            </button>
-          </h2>
-          <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faq-accordion">
-            <div class="accordion-body">Only for the one-time Azure app registration and granting admin consent to the required API permissions. After that initial setup, any user with a Microsoft 365 account can use FileForge without additional IT involvement.</div>
-          </div>
-        </div>
-        <div class="accordion-item">
-          <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
-              What happens to files that are currently open?
-            </button>
-          </h2>
-          <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faq-accordion">
-            <div class="accordion-body">In most cases renaming works fine even with files open in the browser, since SharePoint handles the rename at the storage layer. However, if someone has a file open in a desktop app like Word or Excel, there's a small risk of a sync conflict. We recommend running bulk renames during off-hours to be safe.</div>
-          </div>
-        </div>
-        <div class="accordion-item">
-          <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
-              Does this work with any Microsoft 365 tenant?
-            </button>
-          </h2>
-          <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faq-accordion">
-            <div class="accordion-body">Yes. FileForge is multi-tenant by design. Each user brings their own Azure App Registration Client ID, so it works with any Microsoft 365 organization. Nothing is tied to a specific tenant — your Client ID is stored only in your browser's local storage.</div>
-          </div>
-        </div>
-        <div class="accordion-item">
-          <h2 class="accordion-header">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6">
-              How does the 30-character target work?
-            </button>
-          </h2>
-          <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faq-accordion">
-            <div class="accordion-body">The naming pipeline applies rules in layers: first it replaces organization names with short acronyms, then normalizes dates, then abbreviates common words (e.g. "Financial" → "Fin", "Report" → "Rpt"). If the result is still over the target length, filler words (of, the, for, etc.) are stripped from non-initial positions. You can customize the target from 15 to 60 characters in the Configure step.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Footer CTA -->
-  <section class="footer-cta">
-    <h2 class="reveal">Ready to clean up your SharePoint library?</h2>
-    <p class="reveal reveal-delay-1" style="color:var(--muted); margin-bottom:32px; font-size:1.05rem">It takes 5 minutes to set up and works on any Microsoft 365 tenant.</p>
-    <button class="btn-galaxy btn-lg reveal reveal-delay-2" onclick="goToWizard()">Launch FileForge</button>
-  </section>
-
-  <footer class="site-footer">
-    FileForge — SharePoint File Management &nbsp;·&nbsp; Built with Microsoft Graph API
-  </footer>
-
-</div><!-- /page-landing -->
-
-<!-- ═══════════════════════════ WIZARD ═══════════════════════════ -->
-<div id="page-wizard">
-
-  <!-- Top bar -->
-  <div id="wizard-topbar">
-    <div class="d-flex align-items-center">
-      <div class="logo-icon">✦</div>
-      <span class="logo-text">FileForge</span>
-    </div>
-    <div id="user-bar" class="hidden d-flex align-items-center gap-3">
-      <span style="color:var(--muted); font-size:0.85rem" id="user-bar-name"></span>
-      <button class="btn-galaxy-outline" style="padding:7px 16px; font-size:0.82rem" onclick="signOut()">
-        <i class="bi bi-box-arrow-right me-1"></i>Sign out
-      </button>
+<!-- ════════════════════════════════
+     1 · Azure App Registration
+════════════════════════════════ -->
+<section class="step-section" id="s1">
+  <div class="step-header">
+    <div class="step-badge" id="badge-1">1</div>
+    <div>
+      <h2>Register an App in Azure</h2>
+      <p>One-time setup — grants FileForge permission to read (and optionally rename) your SharePoint files.</p>
     </div>
   </div>
+  <div class="step-body">
 
-  <div class="wizard-wrap">
-    <!-- Step nav -->
-    <div class="step-nav">
-      <div class="step-nav-pill active" id="nav-1"><span class="num">1</span>Connect</div>
-      <div class="step-nav-pill" id="nav-2"><span class="num">2</span>Configure</div>
-      <div class="step-nav-pill" id="nav-3"><span class="num">3</span>Scan</div>
-      <div class="step-nav-pill" id="nav-4"><span class="num">4</span>Review</div>
-      <div class="step-nav-pill" id="nav-5"><span class="num">5</span>Rename</div>
+    <div class="alert-info mb-4">
+      <i class="bi bi-info-circle me-2"></i>
+      You need a <strong>Microsoft 365 admin account</strong> to complete app registration. If you're not the admin, forward these steps to your IT department.
     </div>
 
-    <!-- ══════ STEP 1: Connect ══════ -->
-    <div id="step-1">
-
-      <!-- Azure setup carousel card -->
-      <div class="galaxy-card mb-4">
-        <div class="galaxy-card-header">
-          <span><i class="bi bi-cloud me-2" style="color:var(--blue)"></i>Azure App Registration</span>
-          <span style="color:var(--muted); font-size:0.78rem; font-weight:400">Follow the steps below</span>
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div class="setup-step-num">1</div>
+        <div>
+          <h5>Open App Registrations</h5>
+          <p>Sign in to <strong>portal.azure.com</strong>, search <span class="path-pill">App registrations</span> in the top bar, then click <strong>+ New registration</strong>.</p>
         </div>
-        <div class="galaxy-card-body">
-
-          <!-- Slide 1 -->
-          <div class="portal-slide active" id="portal-slide-0">
-            <div class="row g-4">
-              <div class="col-lg-5">
-                <p style="color:var(--muted); font-size:0.88rem; margin-bottom:18px">Follow these steps to register your Azure app:</p>
-                <ol style="color:var(--text); font-size:0.88rem; line-height:2; padding-left:20px">
-                  <li>Open <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade" target="_blank" style="color:var(--purple); font-weight:600">Azure Portal → App Registrations</a></li>
-                  <li>Click <strong>+ New registration</strong></li>
-                  <li>Name: <strong>FileForge</strong></li>
-                  <li>Account types: <strong>Multitenant</strong></li>
-                  <li>Redirect URI: <strong>Single-page application (SPA)</strong> → paste:</li>
-                </ol>
-                <code id="redirect-uri-display"></code>
-                <ol start="6" style="color:var(--text); font-size:0.88rem; line-height:2; padding-left:20px; margin-top:12px">
-                  <li>Click <strong>Register</strong></li>
-                </ol>
-              </div>
-              <div class="col-lg-7">
-                <div class="portal-mockup">
-                  <div class="portal-topbar">
-                    <span>⊞</span> Microsoft Azure
-                  </div>
-                  <div class="portal-breadcrumb">
-                    <a href="#">Home</a> &rsaquo; <a href="#">Azure Active Directory</a> &rsaquo; <a href="#">App registrations</a> &rsaquo; New registration
-                  </div>
-                  <div class="portal-body">
-                    <div class="portal-sidebar">
-                      <div class="portal-sidebar-item"><div class="dot"></div>Overview</div>
-                      <div class="portal-sidebar-item active-item"><div class="dot"></div>App registrations</div>
-                      <div class="portal-sidebar-item"><div class="dot"></div>Enterprise apps</div>
-                      <div class="portal-sidebar-item"><div class="dot"></div>Users</div>
-                    </div>
-                    <div class="portal-content">
-                      <h3>Register an application</h3>
-                      <div class="portal-field">
-                        <label>Name *</label>
-                        <div class="portal-field-value highlighted" style="color:#0078d4; font-weight:600">FileForge</div>
-                      </div>
-                      <div class="portal-field">
-                        <label>Supported account types *</label>
-                        <div class="portal-radio">
-                          <input type="radio" name="acct-m" disabled/>
-                          <div class="portal-radio-label">Accounts in this organizational directory only<span class="sub">Single tenant</span></div>
-                        </div>
-                        <div class="portal-radio">
-                          <input type="radio" name="acct-m" checked disabled/>
-                          <div class="portal-radio-label" style="color:#0078d4; font-weight:600">Accounts in any organizational directory<span class="sub">Multitenant — recommended</span></div>
-                        </div>
-                      </div>
-                      <div class="portal-field">
-                        <label>Redirect URI (optional)</label>
-                        <div class="portal-field-value highlighted" style="font-size:10px; color:#555">SPA &nbsp;|&nbsp; https://your-app.onrender.com</div>
-                      </div>
-                      <div style="margin-top:14px">
-                        <button class="portal-btn" disabled>Register</button>
-                        <button class="portal-btn-outline" disabled>Cancel</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">2</div>
+        <div>
+          <h5>Fill In the Registration Form</h5>
+          <p>
+            <strong>Name:</strong> something descriptive, e.g. <span class="kbd">SharePoint File Manager</span><br>
+            <strong>Supported account types:</strong> <em>Accounts in this organizational directory only</em><br>
+            Leave Redirect URI blank for now. Click <strong>Register</strong>.
+          </p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">3</div>
+        <div>
+          <h5>Copy Your Client ID</h5>
+          <p>On the app's <strong>Overview</strong> page, copy the <strong>Application (client) ID</strong> — a GUID like <span class="kbd">xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</span>. You'll paste it in Step 2 below.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">4</div>
+        <div>
+          <h5>Add API Permissions</h5>
+          <p>Go to <span class="path-pill">API permissions</span> → <strong>Add a permission</strong> → <strong>Microsoft Graph</strong> → <strong>Delegated permissions</strong>. Add the scopes for your use case:</p>
+          <div class="perm-grid mt-2">
+            <div class="perm-card">
+              <h6><i class="bi bi-eye text-primary me-1"></i>Scan Only</h6>
+              <p>Read-only — no changes made to SharePoint</p>
+              <span class="scope-tag">Sites.Read.All</span>
+              <span class="scope-tag">Files.Read.All</span>
             </div>
-          </div>
-
-          <!-- Slide 2 -->
-          <div class="portal-slide" id="portal-slide-1">
-            <div class="row g-4">
-              <div class="col-lg-5">
-                <p style="color:var(--muted); font-size:0.88rem; margin-bottom:18px">After clicking Register:</p>
-                <ol style="color:var(--text); font-size:0.88rem; line-height:2; padding-left:20px">
-                  <li>You'll land on the app's Overview page</li>
-                  <li>Find the <strong>Application (client) ID</strong> field</li>
-                  <li>Click the copy icon to copy the GUID</li>
-                  <li>Paste it into the Client ID field below</li>
-                </ol>
-                <div style="background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); border-radius:8px; padding:12px 16px; margin-top:16px; font-size:0.85rem; color:#fbbf24">
-                  <i class="bi bi-exclamation-triangle me-2"></i>Keep this ID private — it identifies your app to Azure.
-                </div>
-              </div>
-              <div class="col-lg-7">
-                <div class="portal-mockup">
-                  <div class="portal-topbar"><span>⊞</span> Microsoft Azure</div>
-                  <div class="portal-breadcrumb">
-                    <a href="#">Home</a> &rsaquo; <a href="#">App registrations</a> &rsaquo; FileForge
-                  </div>
-                  <div class="portal-body">
-                    <div class="portal-sidebar">
-                      <div class="portal-sidebar-item active-item"><div class="dot"></div>Overview</div>
-                      <div class="portal-sidebar-item"><div class="dot"></div>API permissions</div>
-                      <div class="portal-sidebar-item"><div class="dot"></div>Authentication</div>
-                      <div class="portal-sidebar-item"><div class="dot"></div>Certificates</div>
-                    </div>
-                    <div class="portal-content">
-                      <h3>FileForge</h3>
-                      <div class="portal-field">
-                        <label>Application (client) ID</label>
-                        <div class="portal-copy-row" style="border-color:#0078d4">
-                          <span style="flex:1; color:#0078d4; font-weight:600">a1b2c3d4-e5f6-7890-abcd-ef1234567890</span>
-                          <button class="copy-btn">Copy</button>
-                        </div>
-                        <div class="portal-callout-yellow">
-                          <span>⚠</span>
-                          <span>Copy this ID — you'll paste it into FileForge</span>
-                        </div>
-                      </div>
-                      <div class="portal-field">
-                        <label>Directory (tenant) ID</label>
-                        <div class="portal-field-value">xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div class="perm-card">
+              <h6><i class="bi bi-pencil text-success me-1"></i>Scan + Rename</h6>
+              <p>Can read and rename files in SharePoint</p>
+              <span class="scope-tag">Sites.ReadWrite.All</span>
+              <span class="scope-tag">Files.ReadWrite.All</span>
             </div>
-          </div>
-
-          <!-- Slide 3 -->
-          <div class="portal-slide" id="portal-slide-2">
-            <div class="row g-4">
-              <div class="col-lg-5">
-                <p style="color:var(--muted); font-size:0.88rem; margin-bottom:18px">Add permissions so FileForge can read/write SharePoint:</p>
-                <ol style="color:var(--text); font-size:0.88rem; line-height:2; padding-left:20px">
-                  <li>Go to <strong>API permissions</strong> in your app</li>
-                  <li>Click <strong>+ Add a permission</strong></li>
-                  <li>Choose <strong>Microsoft Graph → Delegated</strong></li>
-                  <li>Add <code style="color:var(--teal)">Sites.ReadWrite.All</code></li>
-                  <li>Add <code style="color:var(--teal)">Files.ReadWrite.All</code></li>
-                  <li>Click <strong>Grant admin consent</strong></li>
-                </ol>
-              </div>
-              <div class="col-lg-7">
-                <div class="portal-mockup">
-                  <div class="portal-topbar"><span>⊞</span> Microsoft Azure</div>
-                  <div class="portal-breadcrumb">
-                    <a href="#">Home</a> &rsaquo; <a href="#">FileForge</a> &rsaquo; API permissions
-                  </div>
-                  <div class="portal-body">
-                    <div class="portal-sidebar">
-                      <div class="portal-sidebar-item"><div class="dot"></div>Overview</div>
-                      <div class="portal-sidebar-item active-item"><div class="dot"></div>API permissions</div>
-                      <div class="portal-sidebar-item"><div class="dot"></div>Authentication</div>
-                    </div>
-                    <div class="portal-content">
-                      <h3>API permissions</h3>
-                      <table class="portal-perm-table">
-                        <thead>
-                          <tr><th>Permission</th><th>Type</th><th>Status</th></tr>
-                        </thead>
-                        <tbody>
-                          <tr><td>Sites.ReadWrite.All</td><td>Delegated</td><td><span class="portal-check">✓ Granted</span></td></tr>
-                          <tr><td>Files.ReadWrite.All</td><td>Delegated</td><td><span class="portal-check">✓ Granted</span></td></tr>
-                          <tr><td>User.Read</td><td>Delegated</td><td><span class="portal-check">✓ Granted</span></td></tr>
-                        </tbody>
-                      </table>
-                      <div class="portal-perm-add">+ Add a permission</div>
-                      <div style="margin-top:12px">
-                        <button class="portal-btn" disabled>Grant admin consent</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Slide navigation -->
-          <div class="d-flex align-items-center justify-content-between mt-4 pt-3" style="border-top:1px solid var(--border)">
-            <button class="btn-galaxy-outline" id="slide-prev" onclick="changeSlide(-1)" style="padding:8px 18px; font-size:0.82rem" disabled>
-              ← Prev
-            </button>
-            <div class="slide-dots" id="slide-dots">
-              <div class="slide-dot active" onclick="goSlide(0)"></div>
-              <div class="slide-dot" onclick="goSlide(1)"></div>
-              <div class="slide-dot" onclick="goSlide(2)"></div>
-            </div>
-            <button class="btn-galaxy-sm" id="slide-next" onclick="changeSlide(1)">
-              Next →
-            </button>
           </div>
         </div>
       </div>
-
-      <!-- Client ID + sign in -->
-      <div class="galaxy-card">
-        <div class="galaxy-card-header"><i class="bi bi-key me-2" style="color:var(--purple)"></i>Enter Client ID &amp; Sign In</div>
-        <div class="galaxy-card-body">
-          <div class="mb-4">
-            <label class="galaxy-label">Application (Client) ID <span style="color:var(--pink)">*</span></label>
-            <input type="text" class="galaxy-input font-monospace" id="client-id-input"
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              oninput="onClientIdChange()" autocomplete="off"/>
-            <div style="font-size:0.78rem; color:var(--dim); margin-top:6px">
-              From the Overview page of your Azure App Registration. Stored locally in your browser only.
-            </div>
-          </div>
-
-          <div id="sign-in-options" class="hidden">
-            <p style="color:var(--muted); font-size:0.88rem; margin-bottom:20px">
-              Sign in with your Microsoft 365 account. Microsoft will ask for consent on the first sign-in.
-            </p>
-            <div class="row g-3">
-              <div class="col-md-6">
-                <div class="galaxy-card" style="border-color:var(--border)">
-                  <div class="galaxy-card-body" style="padding:20px">
-                    <h6 style="font-family:'Space Grotesk',sans-serif; font-weight:700; margin-bottom:8px">
-                      <i class="bi bi-eye me-2" style="color:var(--blue)"></i>Read Only
-                    </h6>
-                    <p style="color:var(--muted); font-size:0.84rem; margin-bottom:16px">Scan files and preview suggested names. Cannot apply renames.</p>
-                    <button class="btn-galaxy-outline w-100" onclick="signIn(false)">
-                      <i class="bi bi-microsoft me-2"></i>Sign in — Scan Only
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="galaxy-card" style="border-color:var(--purple)">
-                  <div class="galaxy-card-body" style="padding:20px">
-                    <h6 style="font-family:'Space Grotesk',sans-serif; font-weight:700; margin-bottom:8px">
-                      <i class="bi bi-pencil-square me-2" style="color:var(--green)"></i>Full Access
-                    </h6>
-                    <p style="color:var(--muted); font-size:0.84rem; margin-bottom:16px">Scan files, preview names, and apply approved renames to SharePoint.</p>
-                    <button class="btn-galaxy w-100" onclick="signIn(true)">
-                      <i class="bi bi-microsoft me-2"></i>Sign in — Full Access
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div id="auth-error" class="galaxy-alert mt-3 hidden"></div>
-          </div>
+      <div class="setup-step">
+        <div class="setup-step-num">5</div>
+        <div>
+          <h5>Grant Admin Consent</h5>
+          <p>Still on the <span class="path-pill">API permissions</span> page, click <strong>Grant admin consent for [your org]</strong> → <strong>Yes</strong>. Requires a Global Admin account.</p>
         </div>
       </div>
-    </div><!-- /step-1 -->
-
-    <!-- ══════ STEP 2: Configure ══════ -->
-    <div id="step-2" class="hidden">
-      <div class="galaxy-card">
-        <div class="galaxy-card-header"><i class="bi bi-gear me-2" style="color:var(--teal)"></i>Configure Your SharePoint</div>
-        <div class="galaxy-card-body">
-          <p style="color:var(--muted); font-size:0.88rem; margin-bottom:24px">Enter the details for the SharePoint library you want to scan.</p>
-
-          <div class="mb-3">
-            <label class="galaxy-label">SharePoint Site URL <span style="color:var(--pink)">*</span></label>
-            <input type="url" class="galaxy-input" id="site-url"
-              placeholder="https://yourorg.sharepoint.com/sites/SiteName"/>
-            <div style="font-size:0.76rem; color:var(--dim); margin-top:5px">Your browser's address bar when viewing your SharePoint site.</div>
-          </div>
-
-          <div class="mb-3">
-            <label class="galaxy-label">Document Library Name <span style="color:var(--pink)">*</span></label>
-            <input type="text" class="galaxy-input" id="library-name" placeholder="e.g. Documents"/>
-            <div style="font-size:0.76rem; color:var(--dim); margin-top:5px">Go to Site Contents in SharePoint to find the exact library name.</div>
-          </div>
-
-          <div class="mb-3">
-            <label class="galaxy-label">Folders to Skip <span style="color:var(--dim); font-weight:400">(optional)</span></label>
-            <input type="text" class="galaxy-input" id="exclude-folders" value="Research"/>
-            <div style="font-size:0.76rem; color:var(--dim); margin-top:5px">Comma-separated folder names to exclude from the scan.</div>
-          </div>
-
-          <!-- Naming rules collapsible -->
-          <details class="config-panel">
-            <summary><i class="bi bi-sliders me-2" style="color:var(--purple)"></i>Naming Rules Configuration</summary>
-            <div class="config-panel-body">
-
-              <!-- Target length -->
-              <div class="mb-4">
-                <label class="galaxy-label">
-                  Character Target: <span id="target-length-val" style="color:var(--purple)">30</span> chars
-                </label>
-                <input type="range" class="galaxy-range" id="target-length" min="15" max="60" value="30"
-                  oninput="document.getElementById('target-length-val').textContent=this.value"/>
-                <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--dim); margin-top:4px">
-                  <span>15</span><span>60</span>
-                </div>
-              </div>
-
-              <!-- Active rules -->
-              <div class="mb-4">
-                <label class="galaxy-label" style="margin-bottom:12px">Active Rules</label>
-                <div class="d-flex flex-column gap-2">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="rule-titlecase" checked>
-                    <label class="form-check-label" for="rule-titlecase">Title Case</label>
-                  </div>
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="rule-fillers" checked>
-                    <label class="form-check-label" for="rule-fillers">Remove filler words when over target</label>
-                  </div>
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="rule-camelcase" checked>
-                    <label class="form-check-label" for="rule-camelcase">Split CamelCase words</label>
-                  </div>
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="rule-dates" checked>
-                    <label class="form-check-label" for="rule-dates">Normalize date formats</label>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Custom acronyms -->
-              <div class="mb-4">
-                <label class="galaxy-label">Custom Acronyms <span style="color:var(--dim); font-weight:400">(comma-separated)</span></label>
-                <input type="text" class="galaxy-input" id="custom-acronyms"
-                  placeholder="e.g. ACME, HUD, HMIS (comma-separated)"/>
-                <div style="font-size:0.76rem; color:var(--dim); margin-top:5px">These will always be uppercased and not abbreviated further.</div>
-              </div>
-
-              <!-- Custom word abbreviations -->
-              <div class="mb-4">
-                <label class="galaxy-label">Custom Word Abbreviations</label>
-                <div id="abbrev-rows"></div>
-                <button class="btn-galaxy-outline mt-2" style="padding:7px 16px; font-size:0.82rem" onclick="addAbbrevRow()">
-                  <i class="bi bi-plus me-1"></i>Add abbreviation
-                </button>
-              </div>
-
-              <!-- Org name replacements -->
-              <div class="mb-2">
-                <label class="galaxy-label">Organization Name Replacements</label>
-                <div id="org-rows"></div>
-                <button class="btn-galaxy-outline mt-2" style="padding:7px 16px; font-size:0.82rem" onclick="addOrgRow()">
-                  <i class="bi bi-plus me-1"></i>Add org replacement
-                </button>
-              </div>
-
-            </div>
-          </details>
-
-          <div id="config-error" class="galaxy-alert hidden mt-3"></div>
-          <button class="btn-galaxy mt-4" onclick="startScan()">
-            <i class="bi bi-search me-2"></i>Start Scan →
-          </button>
+      <div class="setup-step">
+        <div class="setup-step-num">6</div>
+        <div>
+          <h5>Add a Redirect URI</h5>
+          <p>Go to <span class="path-pill">Authentication</span> → <strong>Add a platform</strong> → <strong>Single-page application (SPA)</strong>.<br>
+          Set the Redirect URI to: <span class="kbd" id="redirect-uri-display">loading…</span></p>
         </div>
       </div>
-    </div><!-- /step-2 -->
+    </div>
 
-    <!-- ══════ STEP 3: Scan ══════ -->
-    <div id="step-3" class="hidden">
-      <div class="galaxy-card">
-        <div class="galaxy-card-header"><i class="bi bi-search me-2" style="color:var(--purple)"></i>Scanning Your Library</div>
-        <div class="galaxy-card-body">
-          <p style="color:var(--muted); font-size:0.88rem; margin-bottom:20px">Scanning your SharePoint library and generating suggested names. This may take a few minutes for large libraries.</p>
-          <div id="scan-log" class="mb-3">Connecting...</div>
-          <div class="galaxy-progress mb-2">
-            <div id="scan-bar" class="galaxy-progress-bar striped-animated" style="width:100%"></div>
-          </div>
-          <div style="color:var(--muted); font-size:0.8rem; margin-top:6px" id="scan-count"></div>
-        </div>
+    <hr class="divider">
+    <p class="mb-0" style="font-size:13px;color:var(--muted)"><i class="bi bi-shield-check me-1"></i>FileForge never persists your access token. Auth is handled in the browser by Microsoft's MSAL library.</p>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════
+     2 · Connect
+════════════════════════════════ -->
+<section class="step-section" id="s2">
+  <div class="step-header">
+    <div class="step-badge" id="badge-2">2</div>
+    <div>
+      <h2>Connect to Microsoft 365</h2>
+      <p>Enter your Client ID from Step 1 and sign in with your Microsoft 365 account.</p>
+    </div>
+  </div>
+  <div class="step-body">
+
+    <div id="connect-form">
+      <div class="mb-3">
+        <label for="client-id-input">Application (Client) ID</label>
+        <input type="text" class="form-control" id="client-id-input" style="max-width:380px"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" maxlength="36">
+        <div class="form-text">From the Overview page of your Azure App Registration (Step 1, item 3).</div>
       </div>
-    </div><!-- /step-3 -->
-
-    <!-- ══════ STEP 4: Review ══════ -->
-    <div id="step-4" class="hidden">
-      <!-- Stats -->
-      <div class="row g-3 mb-4" id="stats-row"></div>
-
-      <div class="galaxy-card mb-3">
-        <div class="galaxy-card-header">
-          <span><i class="bi bi-check2-square me-2" style="color:var(--purple)"></i>Review &amp; Approve</span>
-          <div class="d-flex gap-2">
-            <button class="btn-galaxy-outline" style="padding:6px 14px; font-size:0.8rem" onclick="exportCSV()">
-              <i class="bi bi-download me-1"></i>Export CSV
-            </button>
-            <button class="btn-galaxy-sm" onclick="approveVisible()">
-              <i class="bi bi-check-all me-1"></i>Approve Visible
-            </button>
-          </div>
-        </div>
-        <div class="galaxy-card-body" style="padding:16px">
-          <div class="row g-2">
-            <div class="col-md-3">
-              <input type="text" class="galaxy-input" id="search-input" placeholder="Search files..." oninput="debounceSearch()"/>
-            </div>
-            <div class="col-md-3">
-              <select class="galaxy-select" id="folder-filter" onchange="loadFiles()">
-                <option value="">All folders</option>
-              </select>
-            </div>
-            <div class="col-auto d-flex align-items-center gap-3">
-              <div class="form-check mb-0">
-                <input class="form-check-input" type="checkbox" id="filter-over30" onchange="loadFiles()">
-                <label class="form-check-label" for="filter-over30">Over target</label>
-              </div>
-              <div class="form-check mb-0">
-                <input class="form-check-input" type="checkbox" id="filter-pending" onchange="loadFiles()">
-                <label class="form-check-label" for="filter-pending">Unapproved only</label>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="table-scroll-wrap">
-          <table class="table table-sm mb-0" id="files-table">
-            <thead>
-              <tr>
-                <th style="width:36px"><input type="checkbox" id="sel-all" onchange="toggleAll(this)" style="accent-color:var(--purple)"></th>
-                <th>Original Name</th>
-                <th>Suggested Name</th>
-                <th style="width:70px">Chars</th>
-                <th style="width:90px">Approved</th>
-              </tr>
-            </thead>
-            <tbody id="files-tbody"></tbody>
-          </table>
-        </div>
-        <div class="galaxy-card-footer">
-          <span style="color:var(--muted); font-size:0.8rem" id="file-count-label"></span>
-          <div class="d-flex gap-2 align-items-center">
-            <button class="btn-galaxy-outline" style="padding:5px 14px; font-size:0.8rem" id="btn-prev" onclick="changePage(-1)">← Prev</button>
-            <span style="font-size:0.8rem; color:var(--muted)" id="page-label"></span>
-            <button class="btn-galaxy-outline" style="padding:5px 14px; font-size:0.8rem" id="btn-next" onclick="changePage(1)">Next →</button>
-          </div>
-        </div>
+      <div class="signin-options">
+        <button class="btn-outline-custom" onclick="signIn(false)"><i class="bi bi-eye"></i>Sign in — Scan Only</button>
+        <button class="btn-primary-custom" onclick="signIn(true)"><i class="bi bi-pencil-square"></i>Sign in — Scan &amp; Rename</button>
       </div>
+    </div>
 
-      <button class="btn-galaxy" onclick="goToStep(5)">
-        Continue to Rename <i class="bi bi-arrow-right ms-2"></i>
+    <div id="connected-status" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span class="status-dot connected"></span>
+        <strong id="auth-user-label" style="font-size:14px"></strong>
+        <span id="auth-access-badge"></span>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin:0">
+        Connected to <span id="auth-tenant" style="font-family:monospace"></span>. Continue to Step 3 to configure your scan.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════
+     3 · Configure
+════════════════════════════════ -->
+<section class="step-section" id="s3">
+  <div class="step-header">
+    <div class="step-badge" id="badge-3">3</div>
+    <div>
+      <h2>Configure Your Scan</h2>
+      <p>Set your SharePoint site, document library, and naming rules.</p>
+    </div>
+  </div>
+  <div class="step-body">
+
+    <div class="config-grid mb-3">
+      <div>
+        <label for="site-url">SharePoint Site URL</label>
+        <input type="url" class="form-control" id="site-url" placeholder="https://yourorg.sharepoint.com/sites/YourSite">
+        <div class="form-text">Full URL of the SharePoint site to scan.</div>
+      </div>
+      <div>
+        <label for="library-name">Document Library Name</label>
+        <input type="text" class="form-control" id="library-name" placeholder="Documents" value="Documents">
+        <div class="form-text">Display name of the library as shown in SharePoint.</div>
+      </div>
+    </div>
+
+    <div class="mb-1">
+      <label for="exclude-folders">Exclude Folders <span style="font-weight:400;color:var(--muted)">(optional, comma-separated)</span></label>
+      <input type="text" class="form-control" id="exclude-folders" placeholder="Archive, Templates, Old Files">
+      <div class="form-text">Top-level folder names to skip during the scan.</div>
+    </div>
+
+    <!-- Naming rules -->
+    <div class="rules-panel mt-4">
+      <div class="rules-toggle" onclick="toggleRules()">
+        <span><i class="bi bi-sliders me-2"></i>Naming Rules <span id="rules-summary" style="font-weight:400;color:var(--muted);font-size:12px">— 30 char target, all on</span></span>
+        <i class="bi bi-chevron-down" id="rules-chev"></i>
+      </div>
+      <div class="rules-body" id="rules-body">
+
+        <div class="mb-3">
+          <label>Character Target <span style="font-weight:400;color:var(--muted)">(names over this will have filler words removed)</span></label>
+          <div class="len-row">
+            <input type="range" min="15" max="60" value="30" id="target-len" oninput="updateLenLabel()">
+            <span class="len-val" id="len-label">30</span>
+            <span style="font-size:12px;color:var(--muted)">chars</span>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="rule-row"><input type="checkbox" class="form-check-input" id="r-titlecase" checked><label for="r-titlecase">Title Case — capitalize each word, lowercase articles (a, an, the, of, in…)</label></div>
+        <div class="rule-row"><input type="checkbox" class="form-check-input" id="r-fillers" checked><label for="r-fillers">Remove Filler Words — strips short connecting words when name exceeds target length</label></div>
+        <div class="rule-row"><input type="checkbox" class="form-check-input" id="r-camel" checked><label for="r-camel">Split CamelCase — <span style="font-family:monospace">ProjectStatus</span> → <span style="font-family:monospace">Project Status</span></label></div>
+        <div class="rule-row mb-0"><input type="checkbox" class="form-check-input" id="r-dates" checked><label for="r-dates">Normalize Dates — extract dates and move to end in MM.DD.YY format</label></div>
+
+        <hr class="divider">
+
+        <div class="mb-3">
+          <label>Custom Acronyms <span style="font-weight:400;color:var(--muted)">(kept in ALL CAPS)</span></label>
+          <input type="text" class="form-control" id="custom-acronyms" placeholder="CRM, ERP, SKU" style="font-size:12px">
+          <div class="form-text">Comma-separated acronyms specific to your organization.</div>
+        </div>
+
+        <div class="mb-3">
+          <label>Word Abbreviations <span style="font-weight:400;color:var(--muted)">(Full Word → Short form)</span></label>
+          <div class="custom-rows" id="abbrev-rows"></div>
+          <button class="add-row-btn" onclick="addAbbrevRow()"><i class="bi bi-plus"></i> Add</button>
+        </div>
+
+        <div>
+          <label>Organization Name Replacements</label>
+          <div class="custom-rows" id="org-rows"></div>
+          <button class="add-row-btn" onclick="addOrgRow()"><i class="bi bi-plus"></i> Add</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Demo -->
+    <div style="margin-top:20px">
+      <p style="font-size:13px;font-weight:600;margin-bottom:4px">Example transformations</p>
+      <table class="demo-table">
+        <thead><tr><th>Original Filename</th><th></th><th>Suggested Name</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>Q1_Revenue_Report_Final.xlsx</td><td class="arrow">→</td><td class="after">Q1 Revenue Rpt</td><td style="font-size:11px;color:var(--muted)">"Final" stripped · abbreviation</td></tr>
+          <tr><td>BoardMeetingMinutes_2024.docx</td><td class="arrow">→</td><td class="after">Bd Mtg Minutes 2024</td><td style="font-size:11px;color:var(--muted)">Abbreviations applied</td></tr>
+          <tr><td>2024.01.15_BudgetReview.xlsx</td><td class="arrow">→</td><td class="after">Budget Review 01.15.24</td><td style="font-size:11px;color:var(--muted)">Date extracted &amp; moved to end</td></tr>
+          <tr><td>HR_PolicyUpdate_Draft(1).pdf</td><td class="arrow">→</td><td class="after">HR Policy Upd</td><td style="font-size:11px;color:var(--muted)">Duplicate marker removed</td></tr>
+          <tr><td>ProjectAlphaStatusUpdate.pptx</td><td class="arrow">→</td><td class="after">Project Alpha Status Upd</td><td style="font-size:11px;color:var(--muted)">CamelCase split</td></tr>
+          <tr class="temp"><td>~$WorkInProgress.docx</td><td class="arrow">→</td><td class="after">DELETE - Temp File</td><td style="font-size:11px;color:var(--muted)">Office lock file detected</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════
+     4 · Scan
+════════════════════════════════ -->
+<section class="step-section" id="s4">
+  <div class="step-header">
+    <div class="step-badge" id="badge-4">4</div>
+    <div>
+      <h2>Scan Your Library</h2>
+      <p>FileForge walks your SharePoint library and generates a suggested name for every file.</p>
+    </div>
+  </div>
+  <div class="step-body">
+
+    <div class="mb-3" style="display:flex;gap:10px;align-items:center">
+      <button class="btn-primary-custom" id="btn-scan" onclick="startScan()"><i class="bi bi-search"></i>Start Scan</button>
+      <button class="btn-outline-custom" id="btn-scan-cancel" style="display:none" onclick="cancelScan()">Cancel</button>
+    </div>
+
+    <div class="progress-wrap" id="scan-progress-wrap">
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="scan-fill" style="width:0%"></div></div>
+      <p style="font-size:12px;color:var(--muted);margin:4px 0 8px" id="scan-progress-lbl"></p>
+    </div>
+
+    <div id="scan-log"></div>
+
+    <div id="scan-done-msg" style="display:none" class="alert-success mt-3">
+      <i class="bi bi-check-circle me-2"></i><span id="scan-done-txt"></span> — scroll down to review.
+    </div>
+    <div id="scan-err-msg" style="display:none" class="alert-danger mt-3">
+      <i class="bi bi-exclamation-triangle me-2"></i><span id="scan-err-txt"></span>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════
+     5 · Review
+════════════════════════════════ -->
+<section class="step-section" id="s5">
+  <div class="step-header">
+    <div class="step-badge" id="badge-5">5</div>
+    <div>
+      <h2>Review &amp; Approve Names</h2>
+      <p>Inspect suggested names, edit anything that looks off, then approve what's ready.</p>
+    </div>
+  </div>
+  <div class="step-body">
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="val" id="st-total">—</div><div class="lbl">Total Files</div></div>
+      <div class="stat-card s-success"><div class="val" id="st-approved">—</div><div class="lbl">Approved</div></div>
+      <div class="stat-card s-warning"><div class="val" id="st-over">—</div><div class="lbl">Over Target</div></div>
+      <div class="stat-card s-danger"><div class="val" id="st-temp">—</div><div class="lbl">Temp Files</div></div>
+    </div>
+
+    <div class="review-bar">
+      <input type="text" class="form-control" id="search-in" placeholder="Search files…" oninput="debounce()">
+      <select class="form-select" id="folder-filter" onchange="applyFilters()"><option value="">All folders</option></select>
+      <label class="filter-check"><input type="checkbox" id="f-over30" onchange="applyFilters()"> Over target</label>
+      <label class="filter-check"><input type="checkbox" id="f-unapproved" onchange="applyFilters()"> Unapproved only</label>
+    </div>
+
+    <div class="sheet-wrap">
+      <div class="sheet-scroll">
+        <table class="sheet">
+          <thead>
+            <tr>
+              <th class="col-n">#</th>
+              <th class="col-folder" onclick="sortBy('folder')">Folder <i class="bi bi-chevron-expand" style="font-size:9px"></i></th>
+              <th class="col-orig" onclick="sortBy('orig')">Original Name <i class="bi bi-chevron-expand" style="font-size:9px"></i></th>
+              <th class="col-sug" onclick="sortBy('sug')">Suggested Name <i class="bi bi-chevron-expand" style="font-size:9px"></i></th>
+              <th class="col-chars" onclick="sortBy('chars')">Chars <i class="bi bi-chevron-expand" style="font-size:9px"></i></th>
+              <th class="col-ok"><input type="checkbox" class="approve-cb" id="cb-all" title="Toggle all visible" onchange="toggleAll(this.checked)"></th>
+            </tr>
+          </thead>
+          <tbody id="sheet-body">
+            <tr><td colspan="6" class="empty-msg">Run a scan to see files here.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="sheet-foot">
+        <span id="sheet-count">No data</span>
+        <div class="page-btns" id="page-btns"></div>
+      </div>
+    </div>
+
+    <div class="bulk-bar">
+      <button class="btn-success-custom" onclick="approveVisible()"><i class="bi bi-check-all"></i>Approve visible</button>
+      <button class="btn-outline-custom" onclick="exportCsv()"><i class="bi bi-download"></i>Export CSV</button>
+      <button class="claude-btn" onclick="copyForClaude()"><i class="bi bi-clipboard"></i>Copy for Claude</button>
+      <span id="copy-done" style="font-size:12px;color:var(--success);display:none"><i class="bi bi-check-circle me-1"></i>Copied!</span>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:6px">
+      <i class="bi bi-stars me-1" style="color:#7c3aed"></i>
+      <strong>Copy for Claude</strong> formats unapproved files as a prompt you can paste directly into <a href="https://claude.ai" target="_blank" rel="noopener">claude.ai</a> to get AI name suggestions.
+    </p>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════
+     6 · Rename
+════════════════════════════════ -->
+<section class="step-section" id="s6">
+  <div class="step-header">
+    <div class="step-badge" id="badge-6">6</div>
+    <div>
+      <h2>Apply Renames</h2>
+      <p>Select a folder and push approved name changes to SharePoint.</p>
+    </div>
+  </div>
+  <div class="step-body">
+
+    <div id="no-write-warning" class="alert-warning mb-3" style="display:none">
+      <i class="bi bi-lock me-2"></i>
+      You signed in with read-only access. Sign out and sign back in with <strong>Scan &amp; Rename</strong> to apply changes.
+    </div>
+
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+      Only <strong>approved</strong> files with a different suggested name are renamed. SharePoint version history preserves the original name.
+    </p>
+
+    <div class="folder-list" id="folder-list">
+      <div class="empty-msg">Run a scan first to see folders here.</div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap">
+      <button class="btn-danger-custom" id="btn-rename" onclick="startRename()" disabled>
+        <i class="bi bi-pencil-square"></i>Apply Renames
       </button>
-    </div><!-- /step-4 -->
+      <span id="sel-folder-lbl" style="font-size:13px;color:var(--muted)"></span>
+    </div>
 
-    <!-- ══════ STEP 5: Rename ══════ -->
-    <div id="step-5" class="hidden">
-      <div class="galaxy-card mb-4">
-        <div class="galaxy-card-header"><i class="bi bi-pencil-square me-2" style="color:var(--pink)"></i>Apply Renames</div>
-        <div class="galaxy-card-body">
-          <p style="color:var(--muted); font-size:0.88rem; margin-bottom:20px">Select a folder to rename. Start with a small folder to verify, then continue with the rest.</p>
-          <div class="row g-3" id="rename-folders"></div>
-        </div>
-      </div>
+    <div class="rename-log-wrap" id="rename-log-wrap">
+      <div class="progress-bar-track mt-3"><div class="progress-bar-fill" id="rename-fill" style="width:0%"></div></div>
+      <p style="font-size:12px;color:var(--muted);margin:4px 0 8px" id="rename-progress-lbl"></p>
+      <div class="rename-log" id="rename-log"></div>
+    </div>
 
-      <div id="rename-progress-card" class="galaxy-card hidden">
-        <div class="galaxy-card-body" style="padding:28px">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 style="font-family:'Space Grotesk',sans-serif; font-weight:700; margin:0">Renaming Files</h6>
-            <span id="rename-badge" class="badge-running">Running</span>
-          </div>
-          <div class="galaxy-progress mb-2">
-            <div id="rename-bar" class="galaxy-progress-bar" style="width:0%"></div>
-          </div>
-          <div style="color:var(--muted); font-size:0.8rem; margin-top:6px" id="rename-msg"></div>
-        </div>
-      </div>
-    </div><!-- /step-5 -->
+  </div>
+</section>
 
-  </div><!-- /wizard-wrap -->
-</div><!-- /page-wizard -->
+</main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ═══════════════════════════════════════════════
-// State
-// ═══════════════════════════════════════════════
-let msalApp = null;
-let sessionId = localStorage.getItem('sp_session');
-let clientId  = localStorage.getItem('sp_client_id') || '';
+// ── State ──────────────────────────────────────────────────────
+let sessionId = localStorage.getItem('ff_session') || null;
 let writeAccess = false;
-let currentPage = 0;
-const PAGE_SIZE = 100;
-let totalFiles  = 0;
-let scanTimer   = null;
-let renameTimer = null;
-let searchTimer = null;
-let selectedRenameFolder = null;
-let currentSlide = 0;
+let allFiles = [], filteredFiles = [];
+let page = 0;
+const PAGE = 100;
+let sortKey = null, sortAsc = true;
+let selectedFolder = null;
+let scanTimer = null, renameTimer = null;
+let debounceT = null;
 
-// ═══════════════════════════════════════════════
-// Stars canvas
-// ═══════════════════════════════════════════════
-function initStars() {
-  const canvas = document.getElementById('stars-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let stars = [];
-  let W, H;
+document.getElementById('redirect-uri-display').textContent = window.location.origin;
 
-  function resize() {
-    W = canvas.width  = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  for (let i = 0; i < 200; i++) {
-    stars.push({
-      x: Math.random(),
-      y: Math.random(),
-      r: 0.5 + Math.random() * 1.5,
-      a: 0.3 + Math.random() * 0.7,
-      twinkle: i < 30,
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.005 + Math.random() * 0.015,
-    });
-  }
-
-  function draw(t) {
-    ctx.clearRect(0, 0, W, H);
-    for (const s of stars) {
-      let alpha = s.a;
-      if (s.twinkle) {
-        alpha = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * s.speed * 60 + s.phase));
-      }
-      ctx.beginPath();
-      ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
-      ctx.fill();
-    }
-  }
-
-  let lastT = 0;
-  function loop(t) {
-    draw(t / 1000);
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
-}
-
-// ═══════════════════════════════════════════════
-// Scroll reveal
-// ═══════════════════════════════════════════════
-function initReveal() {
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
-        observer.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0 });
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-}
-
-function smoothTo(id, event) {
-  if (event) event.preventDefault();
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: 'smooth' });
-}
-
-// ═══════════════════════════════════════════════
-// Portal slides
-// ═══════════════════════════════════════════════
-function goSlide(n) {
-  const slides = document.querySelectorAll('.portal-slide');
-  const dots   = document.querySelectorAll('.slide-dot');
-  slides.forEach((s, i) => s.classList.toggle('active', i === n));
-  dots.forEach((d, i)   => d.classList.toggle('active', i === n));
-  currentSlide = n;
-  document.getElementById('slide-prev').disabled = (n === 0);
-  const nextBtn = document.getElementById('slide-next');
-  if (n === slides.length - 1) {
-    nextBtn.textContent = 'Done ✓';
-    nextBtn.style.background = 'linear-gradient(135deg, var(--green), var(--teal))';
-  } else {
-    nextBtn.textContent = 'Next →';
-    nextBtn.style.background = '';
-  }
-}
-
-function changeSlide(d) {
-  const slides = document.querySelectorAll('.portal-slide');
-  const next = Math.max(0, Math.min(slides.length - 1, currentSlide + d));
-  goSlide(next);
-}
-
-// ═══════════════════════════════════════════════
-// API helper
-// ═══════════════════════════════════════════════
-const api = async (method, path, body) => {
-  const opts = {
-    method,
-    headers: { 'Content-Type': 'application/json', 'X-Session-Id': sessionId || '' }
-  };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch('/api' + path, opts);
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ detail: r.statusText }));
-    throw new Error(err.detail || r.statusText);
-  }
-  return r.json();
-};
-
-// ═══════════════════════════════════════════════
-// DOMContentLoaded init
-// ═══════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  // Set redirect URI display
-  const el = document.getElementById('redirect-uri-display');
-  if (el) el.textContent = window.location.origin;
-
-  // Pre-fill saved client ID
-  const inp = document.getElementById('client-id-input');
-  if (inp && clientId) { inp.value = clientId; onClientIdChange(); }
-
-  initStars();
-  initReveal();
-});
-
-// ═══════════════════════════════════════════════
-// Client ID validation
-// ═══════════════════════════════════════════════
-function onClientIdChange() {
-  const val = document.getElementById('client-id-input').value.trim();
-  clientId = val;
-  localStorage.setItem('sp_client_id', val);
-  msalApp = null;
-  const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-  document.getElementById('sign-in-options').classList.toggle('hidden', !isGuid);
-}
-
-// ═══════════════════════════════════════════════
-// Landing → Wizard
-// ═══════════════════════════════════════════════
-function goToWizard() {
-  document.getElementById('page-landing').style.display = 'none';
-  document.getElementById('page-wizard').style.display = '';
-  // Init redirect URI in wizard
-  const el = document.getElementById('redirect-uri-display');
-  if (el) el.textContent = window.location.origin;
-  checkExistingSession();
-}
-
-async function checkExistingSession() {
-  if (!sessionId) return;
-  try {
-    const r = await api('GET', '/auth/me');
-    if (r.authenticated) {
-      writeAccess = r.write_access;
-      setUserBar(r.user);
-      goToStep(2);
-    }
-  } catch(e) {}
-}
-
-// ═══════════════════════════════════════════════
-// Auth / MSAL
-// ═══════════════════════════════════════════════
-async function initMsal() {
-  if (msalApp) return msalApp;
-  if (!clientId) throw new Error('Please enter your Azure App Registration Client ID first.');
-  msalApp = new msal.PublicClientApplication({
-    auth: {
-      clientId,
-      authority:   'https://login.microsoftonline.com/common',
-      redirectUri: window.location.origin,
-    },
-    cache: { cacheLocation: 'sessionStorage' }
+// ── MSAL ───────────────────────────────────────────────────────
+function buildMsal() {
+  const cid = document.getElementById('client-id-input').value.trim();
+  if (!cid) { toast('Enter your Client ID first.'); return null; }
+  if (!/^[0-9a-f\-]{36}$/i.test(cid)) { toast('Client ID must be a 36-character GUID.'); return null; }
+  localStorage.setItem('ff_cid', cid);
+  return new msal.PublicClientApplication({
+    auth: { clientId: cid, authority: 'https://login.microsoftonline.com/organizations', redirectUri: window.location.origin },
+    cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
   });
-  await msalApp.initialize();
-  return msalApp;
 }
 
-async function signIn(wantWrite) {
-  writeAccess = wantWrite;
-  const errEl = document.getElementById('auth-error');
-  errEl.classList.add('hidden');
-  try {
-    const msalInst = await initMsal();
-    const scopes = wantWrite
-      ? ['Sites.ReadWrite.All', 'Files.ReadWrite.All', 'User.Read']
-      : ['Sites.Read.All', 'Files.Read.All', 'User.Read'];
+async function signIn(needWrite) {
+  const app = buildMsal();
+  if (!app) return;
+  await app.initialize();
+  const scopes = needWrite
+    ? ['https://graph.microsoft.com/Sites.ReadWrite.All','https://graph.microsoft.com/Files.ReadWrite.All']
+    : ['https://graph.microsoft.com/Sites.Read.All','https://graph.microsoft.com/Files.Read.All'];
+  let result;
+  try { result = await app.acquireTokenPopup({ scopes }); }
+  catch(e) { if (e.errorCode !== 'user_cancelled') toast('Sign-in failed: ' + e.message, 'error'); return; }
 
-    let result;
-    try {
-      result = await msalInst.acquireTokenSilent({ scopes, account: msalInst.getAllAccounts()[0] });
-    } catch {
-      result = await msalInst.acquireTokenPopup({ scopes });
-    }
-
-    const sess = await api('POST', '/auth/session', {
-      access_token: result.accessToken,
-      write_access: wantWrite
-    });
-    sessionId = sess.session_id;
-    localStorage.setItem('sp_session', sessionId);
-    setUserBar(sess.user);
-    goToStep(2);
-  } catch(e) {
-    errEl.textContent = 'Sign-in failed: ' + e.message;
-    errEl.classList.remove('hidden');
-  }
+  const resp = await api('POST', '/api/auth/session', { access_token: result.accessToken, write_access: needWrite }, false);
+  if (!resp) return;
+  sessionId = resp.session_id;
+  localStorage.setItem('ff_session', sessionId);
+  writeAccess = needWrite;
+  onConnected(resp.user, needWrite);
 }
 
 async function signOut() {
-  try { await api('DELETE', '/auth/session'); } catch {}
-  localStorage.removeItem('sp_session');
-  sessionId = null;
-  location.reload();
+  if (sessionId) await api('DELETE', '/api/auth/session');
+  sessionId = null; localStorage.removeItem('ff_session');
+  writeAccess = false;
+  document.getElementById('connect-form').style.display = '';
+  document.getElementById('connected-status').style.display = 'none';
+  document.getElementById('sign-out-btn').style.display = 'none';
+  document.getElementById('user-chip').style.display = 'none';
+  navDone(2, false);
 }
 
-function setUserBar(user) {
-  document.getElementById('user-bar-name').textContent = user.name || user.email || '';
-  document.getElementById('user-bar').classList.remove('hidden');
+function onConnected(user, isWrite) {
+  document.getElementById('connect-form').style.display = 'none';
+  document.getElementById('connected-status').style.display = '';
+  document.getElementById('auth-user-label').textContent = user.name || user.email;
+  document.getElementById('auth-tenant').textContent = user.tenant || '';
+  document.getElementById('auth-access-badge').innerHTML = isWrite
+    ? '<span class="badge-write"><i class="bi bi-pencil me-1"></i>Read + Write</span>'
+    : '<span class="badge-read"><i class="bi bi-eye me-1"></i>Read Only</span>';
+  document.getElementById('user-name-chip').textContent = user.name || user.email;
+  document.getElementById('user-chip').style.display = '';
+  document.getElementById('sign-out-btn').style.display = '';
+  document.getElementById('no-write-warning').style.display = isWrite ? 'none' : '';
+  document.getElementById('btn-rename').disabled = !isWrite;
+  navDone(2, true);
 }
 
-// ═══════════════════════════════════════════════
-// Step nav
-// ═══════════════════════════════════════════════
-function goToStep(n) {
-  for (let i = 1; i <= 5; i++) {
-    document.getElementById('step-' + i).classList.toggle('hidden', i !== n);
-    const nav = document.getElementById('nav-' + i);
-    nav.className = 'step-nav-pill ' + (i < n ? 'done' : i === n ? 'active' : '');
-  }
-  if (n === 4) { loadFolders(); loadFiles(); loadStats(); }
-  if (n === 5) { loadRenameFolders(); }
+// ── API helper ─────────────────────────────────────────────────
+async function api(method, path, body=null, useSession=true) {
+  const h = { 'Content-Type': 'application/json' };
+  if (useSession && sessionId) h['X-Session-Id'] = sessionId;
+  try {
+    const r = await fetch(path, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+    if (r.status === 204) return {};
+    const d = await r.json();
+    if (!r.ok) { toast(d.detail || 'Server error', 'error'); return null; }
+    return d;
+  } catch(e) { toast('Network error', 'error'); return null; }
 }
 
-// ═══════════════════════════════════════════════
-// Naming rules collection
-// ═══════════════════════════════════════════════
-function getNamingRules() {
-  return {
-    target_length:   parseInt(document.getElementById('target-length').value),
-    title_case:      document.getElementById('rule-titlecase').checked,
-    remove_fillers:  document.getElementById('rule-fillers').checked,
-    split_camelcase: document.getElementById('rule-camelcase').checked,
-    normalize_dates: document.getElementById('rule-dates').checked,
-    custom_acronyms: document.getElementById('custom-acronyms').value
-      .split(',').map(s => s.trim()).filter(Boolean),
-    custom_abbrevs:  getCustomAbbrevs(),
-    custom_org_replacements: getCustomOrgReplacements(),
-  };
-}
-
-function getCustomAbbrevs() {
-  const result = {};
-  document.querySelectorAll('#abbrev-rows .abbrev-row').forEach(row => {
-    const inputs = row.querySelectorAll('input');
-    if (inputs.length >= 2) {
-      const full  = inputs[0].value.trim();
-      const short = inputs[1].value.trim();
-      if (full && short) result[full] = short;
-    }
-  });
-  return result;
-}
-
-function getCustomOrgReplacements() {
-  const result = [];
-  document.querySelectorAll('#org-rows .abbrev-row').forEach(row => {
-    const inputs = row.querySelectorAll('input');
-    if (inputs.length >= 2) {
-      const full  = inputs[0].value.trim();
-      const short = inputs[1].value.trim();
-      if (full && short) result.push([full, short]);
-    }
-  });
-  return result;
-}
-
-function addAbbrevRow(container) {
-  const id = container || 'abbrev-rows';
-  const div = document.createElement('div');
-  div.className = 'abbrev-row';
-  div.innerHTML = `
-    <input type="text" class="galaxy-input" placeholder="Full word (e.g. Financial)" style="flex:1"/>
-    <span style="color:var(--dim); flex-shrink:0; font-size:0.85rem">→</span>
-    <input type="text" class="galaxy-input" placeholder="Short (e.g. Fin)" style="flex:0.6"/>
-    <button class="rm-btn" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>
-  `;
-  document.getElementById(id).appendChild(div);
-}
-
-function addOrgRow() {
-  addAbbrevRow('org-rows');
-  // Update placeholders for last added row
-  const rows = document.querySelectorAll('#org-rows .abbrev-row');
-  const last = rows[rows.length - 1];
-  if (last) {
-    const inputs = last.querySelectorAll('input');
-    if (inputs[0]) inputs[0].placeholder = 'Full org name (e.g. Acme Corporation)';
-    if (inputs[1]) inputs[1].placeholder = 'Short code (e.g. ACME)';
-  }
-}
-
-// ═══════════════════════════════════════════════
-// Scan
-// ═══════════════════════════════════════════════
+// ── Scan ───────────────────────────────────────────────────────
 async function startScan() {
-  const siteUrl  = document.getElementById('site-url').value.trim();
-  const library  = document.getElementById('library-name').value.trim();
-  const excludeRaw = document.getElementById('exclude-folders').value;
-  const exclude  = excludeRaw.split(',').map(s => s.trim()).filter(Boolean);
+  if (!sessionId) { toast('Sign in first (Step 2).'); return; }
+  const siteUrl = document.getElementById('site-url').value.trim();
+  if (!siteUrl) { toast('Enter a Site URL in Step 3.'); return; }
 
-  const errEl = document.getElementById('config-error');
-  if (!siteUrl || !library) {
-    errEl.textContent = 'Please fill in the Site URL and Library Name.';
-    errEl.classList.remove('hidden');
-    return;
-  }
-  errEl.classList.add('hidden');
+  const exclude = document.getElementById('exclude-folders').value
+    .split(',').map(s=>s.trim()).filter(Boolean);
 
-  goToStep(3);
-  await api('POST', '/scan', {
-    site_url:       siteUrl,
-    library,
+  document.getElementById('scan-log').style.display = 'block';
+  document.getElementById('scan-log').textContent = 'Starting…\n';
+  document.getElementById('scan-progress-wrap').style.display = '';
+  document.getElementById('scan-done-msg').style.display = 'none';
+  document.getElementById('scan-err-msg').style.display = 'none';
+  document.getElementById('btn-scan').disabled = true;
+  document.getElementById('btn-scan-cancel').style.display = '';
+  document.getElementById('scan-fill').style.width = '0%';
+
+  const ok = await api('POST', '/api/scan', {
+    site_url: siteUrl,
+    library: document.getElementById('library-name').value.trim() || 'Documents',
     exclude_folders: exclude,
-    naming_rules:   getNamingRules(),
+    naming_rules: collectRules(),
   });
-  scanTimer = setInterval(pollScan, 2000);
+  if (!ok) { document.getElementById('btn-scan').disabled = false; document.getElementById('btn-scan-cancel').style.display = 'none'; return; }
+
+  scanTimer = setInterval(pollScan, 1500);
 }
 
 async function pollScan() {
-  try {
-    const s = await api('GET', '/scan/status');
-    document.getElementById('scan-log').textContent = s.message || '...';
-    document.getElementById('scan-count').textContent =
-      s.total ? `${(s.progress||0).toLocaleString()} files found so far` : '';
-
-    if (s.status === 'done') {
-      clearInterval(scanTimer);
-      document.getElementById('scan-bar').classList.remove('striped-animated');
-      document.getElementById('scan-bar').style.background = 'linear-gradient(90deg, var(--green), var(--teal))';
-      document.getElementById('scan-bar').style.width = '100%';
-      setTimeout(() => goToStep(4), 800);
-    } else if (s.status === 'error') {
-      clearInterval(scanTimer);
-      document.getElementById('scan-bar').style.background = 'linear-gradient(90deg, #dc2626, #9f1239)';
-      document.getElementById('scan-log').textContent = '✗ ' + s.message;
-    }
-  } catch {}
-}
-
-// ═══════════════════════════════════════════════
-// Review — Stats
-// ═══════════════════════════════════════════════
-async function loadStats() {
-  const s = await api('GET', '/files/stats');
-  document.getElementById('stats-row').innerHTML = `
-    <div class="col-6 col-md-3"><div class="stat-box">
-      <span class="stat-num">${(s.total||0).toLocaleString()}</span>
-      <span class="stat-lbl">Total Files</span>
-    </div></div>
-    <div class="col-6 col-md-3"><div class="stat-box">
-      <span class="stat-num" style="background:linear-gradient(135deg,var(--green),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${(s.approved||0).toLocaleString()}</span>
-      <span class="stat-lbl">Approved</span>
-    </div></div>
-    <div class="col-6 col-md-3"><div class="stat-box">
-      <span class="stat-num" style="background:linear-gradient(135deg,var(--blue),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${(s.renamed||0).toLocaleString()}</span>
-      <span class="stat-lbl">Renamed</span>
-    </div></div>
-    <div class="col-6 col-md-3"><div class="stat-box">
-      <span class="stat-num" style="background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${(s.over30||0).toLocaleString()}</span>
-      <span class="stat-lbl">Over Target</span>
-    </div></div>`;
-}
-
-// ═══════════════════════════════════════════════
-// Review — Folders & Files
-// ═══════════════════════════════════════════════
-async function loadFolders() {
-  const folders = await api('GET', '/files/folders');
-  const sel = document.getElementById('folder-filter');
-  sel.innerHTML = '<option value="">All folders</option>';
-  folders.forEach(f => {
-    if (!f.top_folder) return;
-    const o = document.createElement('option');
-    o.value = f.top_folder;
-    o.textContent = `${f.top_folder} (${f.file_count.toLocaleString()})`;
-    sel.appendChild(o);
-  });
-}
-
-async function loadFiles() {
-  const folder  = document.getElementById('folder-filter').value;
-  const search  = document.getElementById('search-input').value;
-  const over30  = document.getElementById('filter-over30').checked;
-  const pending = document.getElementById('filter-pending').checked;
-
-  let url = `/files?offset=${currentPage * PAGE_SIZE}&limit=${PAGE_SIZE}`;
-  if (folder)  url += `&folder=${encodeURIComponent(folder)}`;
-  if (search)  url += `&search=${encodeURIComponent(search)}`;
-  if (over30)  url += `&over30=true`;
-  if (pending) url += `&approved=false`;
-
-  const data = await api('GET', url);
-  totalFiles = data.total;
-  renderTable(data.rows);
-  document.getElementById('file-count-label').textContent = `${data.total.toLocaleString()} files`;
-  document.getElementById('page-label').textContent =
-    `Page ${currentPage + 1} of ${Math.max(1, Math.ceil(data.total / PAGE_SIZE))}`;
-  document.getElementById('btn-prev').disabled = currentPage === 0;
-  document.getElementById('btn-next').disabled = (currentPage + 1) * PAGE_SIZE >= data.total;
-}
-
-function renderTable(rows) {
-  const tbody = document.getElementById('files-tbody');
-  tbody.innerHTML = '';
-  rows.forEach(r => {
-    const over = r.over30 ? `<span class="over30-badge">30+</span>` : '';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input type="checkbox" class="row-chk" data-id="${r.item_id}" style="accent-color:var(--purple)"></td>
-      <td style="color:var(--muted)" title="${r.folder_path}">${escHtml(r.original_name)}</td>
-      <td>
-        <span class="sug-text" data-id="${r.item_id}" style="color:var(--text)">${escHtml(r.suggested_name)}</span>${over}
-        <button class="btn btn-link btn-sm p-0 ms-1" onclick="editName('${r.item_id}',this)" title="Edit name">
-          <i class="bi bi-pencil" style="color:var(--dim); font-size:.7rem"></i>
-        </button>
-      </td>
-      <td style="color:var(--muted)">${r.suggested_name.length}</td>
-      <td>
-        <div class="form-check form-switch mb-0">
-          <input class="form-check-input" type="checkbox" ${r.approved ? 'checked' : ''}
-            onchange="toggleApprove('${r.item_id}',this.checked)">
-        </div>
-      </td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-function escHtml(s) {
-  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function editName(id, btn) {
-  const span = document.querySelector(`.sug-text[data-id="${id}"]`);
-  const orig = span.textContent;
-  const inp  = document.createElement('input');
-  inp.type = 'text'; inp.value = orig;
-  inp.className = 'galaxy-input d-inline-block';
-  inp.style.cssText = 'width:200px; padding:4px 8px; font-size:0.82rem';
-  span.replaceWith(inp); btn.style.display = 'none'; inp.focus();
-  const save = async () => {
-    const v = inp.value.trim() || orig;
-    if (v !== orig) await api('PATCH', `/files/${id}`, { suggested_name: v });
-    const ns = document.createElement('span');
-    ns.className = 'sug-text'; ns.dataset.id = id;
-    ns.style.color = 'var(--text)'; ns.textContent = v;
-    inp.replaceWith(ns); btn.style.display = '';
-    loadStats();
-  };
-  inp.onblur = save;
-  inp.onkeydown = e => {
-    if (e.key === 'Enter') inp.blur();
-    if (e.key === 'Escape') { inp.value = orig; inp.blur(); }
-  };
-}
-
-async function toggleApprove(id, approved) {
-  await api('POST', '/files/approve', { item_ids: [id], approved });
-  loadStats();
-}
-
-async function approveVisible() {
-  const folder = document.getElementById('folder-filter').value;
-  const ids    = [...document.querySelectorAll('.row-chk:checked')].map(c => c.dataset.id);
-  if (folder) {
-    await api('POST', '/files/approve', { folder, approved: true });
-  } else if (ids.length) {
-    await api('POST', '/files/approve', { item_ids: ids, approved: true });
-  } else {
-    let url = `/files?limit=50000&offset=0`;
-    if (document.getElementById('folder-filter').value)
-      url += `&folder=${encodeURIComponent(document.getElementById('folder-filter').value)}`;
-    const data = await api('GET', url);
-    const allIds = data.rows.map(r => r.item_id);
-    await api('POST', '/files/approve', { item_ids: allIds, approved: true });
+  const st = await api('GET', '/api/scan/status');
+  if (!st) return;
+  const log = document.getElementById('scan-log');
+  if (st.message) { log.textContent = st.message + '\n'; log.scrollTop = log.scrollHeight; }
+  if (st.progress) {
+    document.getElementById('scan-progress-lbl').textContent = `${st.progress.toLocaleString()} files found…`;
+    document.getElementById('scan-fill').style.width = st.total > 0 ? (st.progress/st.total*100)+'%' : '40%';
   }
-  loadFiles(); loadStats();
+  if (st.status === 'done') {
+    clearInterval(scanTimer);
+    document.getElementById('btn-scan').disabled = false;
+    document.getElementById('btn-scan-cancel').style.display = 'none';
+    document.getElementById('scan-fill').style.width = '100%';
+    document.getElementById('scan-done-txt').textContent = st.message;
+    document.getElementById('scan-done-msg').style.display = '';
+    navDone(4, true);
+    await Promise.all([loadFiles(), loadFolders(), refreshStats()]);
+  }
+  if (st.status === 'error') {
+    clearInterval(scanTimer);
+    document.getElementById('btn-scan').disabled = false;
+    document.getElementById('btn-scan-cancel').style.display = 'none';
+    document.getElementById('scan-err-txt').textContent = st.message;
+    document.getElementById('scan-err-msg').style.display = '';
+  }
 }
 
-function toggleAll(cb) {
-  document.querySelectorAll('.row-chk').forEach(c => c.checked = cb.checked);
+function cancelScan() {
+  clearInterval(scanTimer);
+  document.getElementById('btn-scan').disabled = false;
+  document.getElementById('btn-scan-cancel').style.display = 'none';
 }
 
-function debounceSearch() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { currentPage = 0; loadFiles(); }, 350);
+// ── Files / Table ──────────────────────────────────────────────
+async function loadFiles() {
+  const d = await api('GET', '/api/files?limit=10000');
+  if (!d) return;
+  allFiles = d.rows;
+  applyFilters();
 }
 
-function changePage(d) {
-  currentPage = Math.max(0, currentPage + d);
-  loadFiles();
+function applyFilters() {
+  let rows = [...allFiles];
+  const q = document.getElementById('search-in').value.toLowerCase();
+  const fol = document.getElementById('folder-filter').value;
+  const over = document.getElementById('f-over30').checked;
+  const unapp = document.getElementById('f-unapproved').checked;
+
+  if (q) rows = rows.filter(r => r.original_name.toLowerCase().includes(q) || r.suggested_name.toLowerCase().includes(q));
+  if (fol) rows = rows.filter(r => r.folder_path.startsWith('/'+fol));
+  if (over) rows = rows.filter(r => r.over30);
+  if (unapp) rows = rows.filter(r => !r.approved);
+
+  if (sortKey) rows.sort((a,b) => {
+    const av = sortKey==='folder' ? a.folder_path : sortKey==='orig' ? a.original_name : sortKey==='sug' ? a.suggested_name : a.suggested_name.length;
+    const bv = sortKey==='folder' ? b.folder_path : sortKey==='orig' ? b.original_name : sortKey==='sug' ? b.suggested_name : b.suggested_name.length;
+    return sortAsc ? (av>bv?1:av<bv?-1:0) : (av<bv?1:av>bv?-1:0);
+  });
+
+  filteredFiles = rows; page = 0; renderTable();
 }
 
-async function exportCSV() {
-  const folder = document.getElementById('folder-filter').value;
-  let url = `/files?limit=50000&offset=0`;
-  if (folder) url += `&folder=${encodeURIComponent(folder)}`;
-  const data = await api('GET', url);
-  const cols = ['folder_path','original_name','suggested_name','extension','approved','over30'];
-  const csv  = [cols.join(','), ...data.rows.map(r =>
-    cols.map(c => `"${(r[c]??'').toString().replace(/"/g,'""')}"`).join(',')
-  )].join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = 'suggested_names.csv';
-  a.click();
-}
+function debounce() { clearTimeout(debounceT); debounceT = setTimeout(applyFilters, 250); }
 
-// ═══════════════════════════════════════════════
-// Rename
-// ═══════════════════════════════════════════════
-async function loadRenameFolders() {
-  const folders = await api('GET', '/files/folders');
-  const container = document.getElementById('rename-folders');
-  container.innerHTML = '';
+function sortBy(k) { if (sortKey===k) sortAsc=!sortAsc; else {sortKey=k;sortAsc=true;} applyFilters(); }
 
-  if (!writeAccess) {
-    container.innerHTML = `<div class="col-12">
-      <div class="galaxy-alert">
-        <i class="bi bi-exclamation-triangle me-2"></i>
-        You signed in with read-only access.
-        <a href="#" onclick="signOut()" style="color:var(--pink); font-weight:600">Sign in again with Full Access</a>
-        to apply renames.
-      </div>
-    </div>`;
+function renderTable() {
+  const tbody = document.getElementById('sheet-body');
+  const total = filteredFiles.length;
+  const pages = Math.max(1, Math.ceil(total/PAGE));
+  if (page >= pages) page = pages-1;
+  const slice = filteredFiles.slice(page*PAGE, (page+1)*PAGE);
+
+  if (!total) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No files match the current filters.</td></tr>';
+    document.getElementById('sheet-count').textContent = 'No results';
+    document.getElementById('page-btns').innerHTML = '';
     return;
   }
 
-  folders.forEach(f => {
-    if (!f.top_folder) return;
-    const pct = f.file_count ? Math.round(f.approved_count / f.file_count * 100) : 0;
-    const col = document.createElement('div');
-    col.className = 'col-md-4 col-sm-6';
-    col.innerHTML = `
-      <div class="folder-card" onclick="selectFolder('${escHtml(f.top_folder)}', this)">
-        <h6>${escHtml(f.top_folder)}</h6>
-        <div class="folder-meta">${f.file_count.toLocaleString()} files &middot; ${f.approved_count.toLocaleString()} approved</div>
-        <div class="galaxy-progress mb-1" style="height:5px">
-          <div class="galaxy-progress-bar" style="width:${pct}%; animation:none"></div>
+  tbody.innerHTML = slice.map((r, i) => {
+    const n = page*PAGE + i + 1;
+    const chars = r.suggested_name.length;
+    const pill = r.over30 ? `<span class="chars-warn">${chars}</span>` : `<span class="chars-ok">${chars}</span>`;
+    const isTemp = r.suggested_name === 'DELETE - Temp File';
+    const cls = isTemp ? 'row-temp' : r.approved ? 'row-approved' : '';
+    const folder = r.folder_path.replace(/^\//,'').split('/').slice(0,2).join('/') || '/';
+    return `<tr class="${cls}" data-id="${r.item_id}">
+      <td class="col-n">${n}</td>
+      <td class="col-folder" title="${r.folder_path}">${escHtml(folder)}</td>
+      <td class="col-orig" title="${escHtml(r.original_name+r.extension)}">${escHtml(r.original_name)}</td>
+      <td class="col-sug">
+        <div class="name-cell">
+          <span class="name-text" title="${escHtml(r.suggested_name)}">${escHtml(r.suggested_name)}</span>
+          <button class="edit-btn" onclick="editCell('${r.item_id}')" title="Edit"><i class="bi bi-pencil"></i></button>
         </div>
-        <div style="font-size:0.75rem; color:var(--dim)">${pct}% approved</div>
-      </div>`;
-    container.appendChild(col);
+      </td>
+      <td class="col-chars">${pill}</td>
+      <td class="col-ok"><input type="checkbox" class="approve-cb" ${r.approved?'checked':''} onchange="toggleOne('${r.item_id}',this.checked)"></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('sheet-count').textContent = `${total.toLocaleString()} file${total!==1?'s':''} · page ${page+1} of ${pages}`;
+
+  let pb = '';
+  if (page > 0) pb += `<button class="page-btn" onclick="goPage(${page-1})">‹</button>`;
+  for (let p = Math.max(0,page-2); p <= Math.min(pages-1,page+2); p++)
+    pb += `<button class="page-btn${p===page?' cur':''}" onclick="goPage(${p})">${p+1}</button>`;
+  if (page < pages-1) pb += `<button class="page-btn" onclick="goPage(${page+1})">›</button>`;
+  document.getElementById('page-btns').innerHTML = pb;
+}
+
+function goPage(p) { page = p; renderTable(); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function editCell(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  const cell = tr.querySelector('.name-cell');
+  const span = cell.querySelector('.name-text');
+  const orig = span.textContent;
+  const inp = document.createElement('input');
+  inp.className = 'name-edit-input'; inp.value = orig;
+  cell.replaceChild(inp, span); inp.focus(); inp.select();
+  async function save() {
+    const v = inp.value.trim();
+    if (!v || v === orig) { cell.replaceChild(span, inp); return; }
+    const ok = await api('PATCH', `/api/files/${id}`, { suggested_name: v });
+    if (ok) { const f = allFiles.find(x=>x.item_id===id); if(f){f.suggested_name=v;f.over30=v.length>30;} applyFilters(); refreshStats(); }
+    else cell.replaceChild(span, inp);
+  }
+  inp.addEventListener('blur', save);
+  inp.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();inp.blur();} if(e.key==='Escape') cell.replaceChild(span, inp); });
+}
+
+async function toggleOne(id, approved) {
+  const ok = await api('POST', '/api/files/approve', { item_ids:[id], approved });
+  if (ok) { const f=allFiles.find(x=>x.item_id===id); if(f) f.approved=approved; applyFilters(); refreshStats(); }
+}
+
+function toggleAll(checked) {
+  const ids = filteredFiles.slice(page*PAGE,(page+1)*PAGE).map(f=>f.item_id);
+  if (!ids.length) return;
+  api('POST','/api/files/approve',{item_ids:ids,approved:checked}).then(ok=>{
+    if (ok) { ids.forEach(id=>{const f=allFiles.find(x=>x.item_id===id);if(f)f.approved=checked;}); applyFilters(); refreshStats(); }
   });
-
-  const btnRow = document.createElement('div');
-  btnRow.className = 'col-12 mt-3';
-  btnRow.innerHTML = `<button id="exec-btn" class="btn-exec-rename" disabled onclick="executeRename()">
-    <i class="bi bi-pencil-square me-2"></i>Apply Renames for Selected Folder
-  </button>`;
-  container.appendChild(btnRow);
 }
 
-function selectFolder(folder, card) {
-  document.querySelectorAll('.folder-card').forEach(c => c.classList.remove('selected'));
-  card.classList.add('selected');
-  selectedRenameFolder = folder;
-  const btn = document.getElementById('exec-btn');
-  if (btn) btn.disabled = false;
+function approveVisible() {
+  const ids = filteredFiles.map(f=>f.item_id);
+  if (!ids.length) return;
+  api('POST','/api/files/approve',{item_ids:ids,approved:true}).then(ok=>{
+    if (ok) { ids.forEach(id=>{const f=allFiles.find(x=>x.item_id===id);if(f)f.approved=true;}); applyFilters(); refreshStats(); }
+  });
 }
 
-async function executeRename() {
-  if (!selectedRenameFolder) return;
-  if (!confirm(`Apply all approved renames in "${selectedRenameFolder}" to SharePoint?\n\nThis cannot be undone easily. SharePoint version history will preserve previous filenames.`)) return;
+async function refreshStats() {
+  const s = await api('GET','/api/files/stats');
+  if (!s) return;
+  document.getElementById('st-total').textContent = s.total.toLocaleString();
+  document.getElementById('st-approved').textContent = s.approved.toLocaleString();
+  document.getElementById('st-over').textContent = s.over30.toLocaleString();
+  document.getElementById('st-temp').textContent = s.temp_files.toLocaleString();
+}
 
-  document.getElementById('rename-progress-card').classList.remove('hidden');
-  document.getElementById('exec-btn').disabled = true;
-  document.getElementById('rename-badge').textContent = 'Running';
-  document.getElementById('rename-badge').className = 'badge-running';
+async function loadFolders() {
+  const d = await api('GET','/api/files/folders');
+  if (!d) return;
 
-  await api('POST', '/rename', { folder: selectedRenameFolder });
+  document.getElementById('folder-filter').innerHTML =
+    '<option value="">All folders</option>' +
+    d.map(f=>`<option value="${escHtml(f.top_folder)}">${escHtml(f.top_folder)} (${f.file_count})</option>`).join('');
+
+  document.getElementById('folder-list').innerHTML = d.length
+    ? d.map(f => {
+        const pct = f.file_count > 0 ? Math.round(f.approved_count/f.file_count*100) : 0;
+        return `<div class="folder-card" onclick="selectFolder('${escHtml(f.top_folder)}',this)">
+          <i class="bi bi-folder2 fc-icon"></i>
+          <div style="flex:1">
+            <div class="fc-name">${escHtml(f.top_folder)}</div>
+            <div class="fc-bar"><div class="fc-fill" style="width:${pct}%"></div></div>
+            <div class="fc-meta">${f.approved_count} / ${f.file_count} approved (${pct}%)</div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="empty-msg">No folders found.</div>';
+}
+
+// ── CSV export ─────────────────────────────────────────────────
+function exportCsv() {
+  if (!filteredFiles.length) { toast('No files to export.'); return; }
+  const hdr = ['#','Folder','Original Name','Extension','Suggested Name','Chars','Approved','Renamed'];
+  const rows = filteredFiles.map((r,i)=>[i+1,r.folder_path,r.original_name,r.extension,r.suggested_name,r.suggested_name.length,r.approved,r.renamed]);
+  const csv = [hdr,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'fileforge_names.csv'});
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ── Copy for Claude ────────────────────────────────────────────
+async function copyForClaude() {
+  const unapproved = allFiles.filter(f=>!f.approved && f.suggested_name!=='DELETE - Temp File');
+  if (!unapproved.length) { toast('All files are already approved.'); return; }
+
+  const rows = unapproved.slice(0,200);
+  const table = rows.map((r,i)=>{
+    const folder = r.folder_path.replace(/^\//,'').split('/').slice(0,2).join('/') || '/';
+    return `| ${i+1} | ${folder} | ${r.original_name}${r.extension} | ${r.suggested_name} | ${r.suggested_name.length} |`;
+  }).join('\n');
+
+  const note = unapproved.length > 200
+    ? `\n> Showing first 200 of ${unapproved.length} unapproved files. Export CSV for the full list.\n`
+    : '';
+
+  const prompt = `I'm organizing files in a SharePoint document library and need help reviewing AI-generated name suggestions.
+
+**Rules already applied:**
+- Title Case with spaces (no underscores or hyphens)
+- Abbreviations: Report→Rpt, Meeting→Mtg, Management→Mgmt, Document→Doc, etc.
+- Dates moved to end in MM.DD.YY format
+- Duplicate markers and "Final" removed
+- Target: 30 characters or fewer
+
+**Your task:** Review the suggestions below. For any that could be clearer, shorter, or more consistent, provide a better alternative.
+
+Respond in this format for each file you'd change:
+\`File # | Your suggestion | Brief reason\`
+${note}
+| # | Folder | Original Filename | Current Suggestion | Chars |
+|---|--------|------------------|--------------------|-------|
+${table}
+`;
+
+  try {
+    await navigator.clipboard.writeText(prompt);
+    const el = document.getElementById('copy-done');
+    el.style.display = ''; setTimeout(()=>el.style.display='none', 3000);
+    toast(`Copied prompt for ${rows.length} file${rows.length!==1?'s':''}.`, 'success');
+  } catch { toast('Clipboard write failed — try again.', 'error'); }
+}
+
+// ── Rename ─────────────────────────────────────────────────────
+function selectFolder(name, el) {
+  document.querySelectorAll('.folder-card').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedFolder = name;
+  document.getElementById('btn-rename').disabled = !writeAccess;
+  document.getElementById('sel-folder-lbl').textContent = `Selected: ${name}`;
+}
+
+async function startRename() {
+  if (!selectedFolder) { toast('Select a folder first.'); return; }
+  if (!writeAccess) { toast('Sign in with Read + Write access to rename.'); return; }
+  if (!confirm(`Apply approved renames in "${selectedFolder}"?\n\nSharePoint version history will preserve the original names.`)) return;
+
+  document.getElementById('rename-log-wrap').style.display = '';
+  document.getElementById('btn-rename').disabled = true;
+  document.getElementById('rename-log').innerHTML = '';
+  document.getElementById('rename-fill').style.width = '0%';
+
+  const ok = await api('POST','/api/rename',{folder:selectedFolder});
+  if (!ok) { document.getElementById('btn-rename').disabled = false; return; }
   renameTimer = setInterval(pollRename, 1500);
 }
 
 async function pollRename() {
-  const s = await api('GET', '/rename/status');
-  const pct = s.total ? Math.round(s.done / s.total * 100) : 0;
-  document.getElementById('rename-bar').style.width = pct + '%';
-  document.getElementById('rename-msg').textContent = s.message || '';
-
-  if (s.status === 'done') {
+  const st = await api('GET','/api/rename/status');
+  if (!st) return;
+  document.getElementById('rename-progress-lbl').textContent = st.message || '';
+  if (st.total > 0) document.getElementById('rename-fill').style.width = (st.done/st.total*100)+'%';
+  const log = document.getElementById('rename-log');
+  if (st.message) { log.innerHTML += `<span class="${st.errors>0?'log-err':'log-ok'}">${escHtml(st.message)}</span>\n`; log.scrollTop=log.scrollHeight; }
+  if (st.status==='done') {
     clearInterval(renameTimer);
-    document.getElementById('rename-badge').textContent = 'Done';
-    document.getElementById('rename-badge').className = 'badge-done';
-    document.getElementById('exec-btn').disabled = false;
-    loadRenameFolders();
-    loadStats();
-  } else if (s.status === 'error') {
+    document.getElementById('btn-rename').disabled = false;
+    navDone(6, true);
+    await Promise.all([loadFiles(), loadFolders(), refreshStats()]);
+    toast(st.message, 'success');
+  }
+  if (st.status==='error') {
     clearInterval(renameTimer);
-    document.getElementById('rename-badge').textContent = 'Error';
-    document.getElementById('rename-badge').className = 'badge-error';
-    document.getElementById('exec-btn').disabled = false;
+    document.getElementById('btn-rename').disabled = false;
+    toast(st.message, 'error');
   }
 }
+
+// ── Naming rules ───────────────────────────────────────────────
+function collectRules() {
+  const abbrevs = {};
+  document.querySelectorAll('#abbrev-rows .custom-row').forEach(r=>{
+    const [a,b] = r.querySelectorAll('input');
+    if(a.value.trim()&&b.value.trim()) abbrevs[a.value.trim()]=b.value.trim();
+  });
+  const orgs = [];
+  document.querySelectorAll('#org-rows .custom-row').forEach(r=>{
+    const [a,b] = r.querySelectorAll('input');
+    if(a.value.trim()&&b.value.trim()) orgs.push([a.value.trim(),b.value.trim()]);
+  });
+  const rules = {
+    target_length: parseInt(document.getElementById('target-len').value),
+    title_case: document.getElementById('r-titlecase').checked,
+    remove_fillers: document.getElementById('r-fillers').checked,
+    split_camelcase: document.getElementById('r-camel').checked,
+    normalize_dates: document.getElementById('r-dates').checked,
+    custom_acronyms: document.getElementById('custom-acronyms').value.split(',').map(s=>s.trim()).filter(Boolean),
+    custom_abbrevs: abbrevs,
+    custom_org_replacements: orgs,
+  };
+  updateRulesSummary(rules);
+  return rules;
+}
+
+function updateLenLabel() {
+  document.getElementById('len-label').textContent = document.getElementById('target-len').value;
+  updateRulesSummary();
+}
+
+function updateRulesSummary() {
+  const len = document.getElementById('target-len').value;
+  const on = ['r-titlecase','r-fillers','r-camel','r-dates'].filter(id=>document.getElementById(id).checked).length;
+  document.getElementById('rules-summary').textContent = `— ${len} char target, ${on}/4 rules on`;
+}
+
+function toggleRules() {
+  const b = document.getElementById('rules-body'), c = document.getElementById('rules-chev');
+  b.classList.toggle('open');
+  c.className = b.classList.contains('open') ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+}
+
+function addAbbrevRow(a='',b='') {
+  const d = document.createElement('div'); d.className='custom-row';
+  d.innerHTML=`<input class="form-control" placeholder="Full word" value="${escHtml(a)}" style="font-size:12px"><span style="color:var(--muted);font-size:12px">→</span><input class="form-control" placeholder="Short" value="${escHtml(b)}" style="font-size:12px;max-width:100px"><button class="rm-row-btn" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('abbrev-rows').appendChild(d);
+}
+
+function addOrgRow(a='',b='') {
+  const d = document.createElement('div'); d.className='custom-row';
+  d.innerHTML=`<input class="form-control" placeholder="Full name or regex" value="${escHtml(a)}" style="font-size:12px"><span style="color:var(--muted);font-size:12px">→</span><input class="form-control" placeholder="Replace with" value="${escHtml(b)}" style="font-size:12px;max-width:130px"><button class="rm-row-btn" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('org-rows').appendChild(d);
+}
+
+// ── Nav state ──────────────────────────────────────────────────
+function navDone(step, done) {
+  const el = document.getElementById('nav-'+step);
+  const badge = document.getElementById('badge-'+step);
+  if (done) {
+    el.classList.add('done'); el.querySelector('.sn').innerHTML='<i class="bi bi-check"></i>';
+    if(badge){badge.classList.add('done');badge.innerHTML='<i class="bi bi-check"></i>';}
+  } else {
+    el.classList.remove('done'); el.querySelector('.sn').textContent=step;
+    if(badge){badge.classList.remove('done');badge.textContent=step;}
+  }
+}
+
+// Scroll spy
+new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const n=e.target.id.replace('s','');
+      document.querySelectorAll('.step-link').forEach(l=>l.classList.remove('active'));
+      const el=document.getElementById('nav-'+n);if(el)el.classList.add('active');
+    }
+  });
+},{rootMargin:'-20% 0px -70% 0px'}).observe.apply(
+  new IntersectionObserver(()=>{}),
+  ['s1','s2','s3','s4','s5','s6'].map(id=>document.getElementById(id)).filter(Boolean)
+);
+
+// ── Toast ──────────────────────────────────────────────────────
+function toast(msg, type='info') {
+  const el = document.createElement('div'); el.className='toast-item';
+  el.style.borderLeft=`3px solid ${type==='error'?'#f87171':type==='success'?'#4ade80':'#60a5fa'}`;
+  el.textContent=msg; document.getElementById('toast-wrap').appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},3500);
+}
+
+// ── Init ───────────────────────────────────────────────────────
+// Scroll spy setup (proper version)
+(function(){
+  const obs = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        const n=e.target.id.replace('s','');
+        document.querySelectorAll('.step-link').forEach(l=>l.classList.remove('active'));
+        const el=document.getElementById('nav-'+n);if(el)el.classList.add('active');
+      }
+    });
+  },{rootMargin:'-20% 0px -70% 0px'});
+  ['s1','s2','s3','s4','s5','s6'].forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
+})();
+
+(async function init(){
+  const savedCid = localStorage.getItem('ff_cid');
+  if (savedCid) document.getElementById('client-id-input').value = savedCid;
+  if (!sessionId) return;
+  const me = await api('GET','/api/auth/me');
+  if (me?.authenticated) {
+    writeAccess = me.write_access;
+    onConnected(me.user, me.write_access);
+    const st = await api('GET','/api/files/stats');
+    if (st?.total > 0) {
+      document.getElementById('st-total').textContent = st.total.toLocaleString();
+      document.getElementById('st-approved').textContent = st.approved.toLocaleString();
+      document.getElementById('st-over').textContent = st.over30.toLocaleString();
+      document.getElementById('st-temp').textContent = st.temp_files.toLocaleString();
+      document.getElementById('scan-done-txt').textContent = `${st.total.toLocaleString()} files from previous scan`;
+      document.getElementById('scan-done-msg').style.display = '';
+      navDone(4, true);
+      await Promise.all([loadFiles(), loadFolders()]);
+    }
+  } else {
+    sessionId = null; localStorage.removeItem('ff_session');
+  }
+})();
 </script>
 </body>
 </html>
