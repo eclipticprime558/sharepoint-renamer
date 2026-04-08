@@ -548,9 +548,31 @@ def poll_device_code(body: DeviceCodePoll):
 def _create_app_registration(admin_token: str, redirect_uri: str) -> str:
     h = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
 
+    APP_NAME = "FileForge - SharePoint Renamer"
+
+    # 0. Check if app already exists — reuse it rather than create a duplicate
+    existing = requests.get(
+        f"https://graph.microsoft.com/v1.0/applications?$filter=displayName eq '{APP_NAME}'&$select=id,appId,spa",
+        headers=h, timeout=15,
+    )
+    if existing.status_code == 200:
+        matches = existing.json().get("value", [])
+        if matches:
+            app_object_id = matches[0]["id"]
+            app_client_id = matches[0]["appId"]
+            # Ensure this redirect URI is registered
+            current_uris = matches[0].get("spa", {}).get("redirectUris", [])
+            if redirect_uri not in current_uris:
+                requests.patch(
+                    f"https://graph.microsoft.com/v1.0/applications/{app_object_id}",
+                    json={"spa": {"redirectUris": current_uris + [redirect_uri]}},
+                    headers=h, timeout=15,
+                )
+            return app_client_id
+
     # 1. Create the application
     app_body = {
-        "displayName": "FileForge - SharePoint Renamer",
+        "displayName": APP_NAME,
         "signInAudience": "AzureADMyOrg",
         "spa": {"redirectUris": [redirect_uri]},
         "requiredResourceAccess": [{
