@@ -249,6 +249,34 @@
     }
     .option-card p { font-size: 13px; color: var(--muted); margin: 0 0 16px; line-height: 1.6; }
 
+    /* Setup wizard */
+    .setup-wizard { display: flex; flex-direction: column; gap: 0; }
+    .wiz-step {
+      display: flex; gap: 16px; padding: 18px 20px;
+      border: 1px solid var(--border); border-bottom: none;
+      background: rgba(255,255,255,.02); transition: background .2s;
+    }
+    .wiz-step:first-child { border-radius: 12px 12px 0 0; }
+    .wiz-step:last-child  { border-radius: 0 0 12px 12px; border-bottom: 1px solid var(--border); }
+    .wiz-step.wiz-active  { background: rgba(139,92,246,.07); border-color: rgba(139,92,246,.4); }
+    .wiz-step.wiz-done    { background: rgba(20,184,166,.05); border-color: rgba(20,184,166,.25); }
+    .wiz-step.wiz-locked  { opacity: .45; pointer-events: none; }
+    .wiz-num {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; color: #fff; font-family: 'Space Grotesk', sans-serif;
+    }
+    .wiz-done .wiz-num { background: linear-gradient(135deg, #14b8a6, #0891b2); }
+    .wiz-done .wiz-num::after { content: '✓'; }
+    .wiz-done .wiz-num { font-size: 0; }
+    .wiz-body { flex: 1; }
+    .wiz-title { font-weight: 700; font-size: 14px; color: var(--text); font-family: 'Space Grotesk', sans-serif; margin-bottom: 4px; }
+    .wiz-desc  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .perm-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .perm-list code { background: rgba(139,92,246,.15); color: var(--purple); padding: 3px 8px; border-radius: 6px; font-size: 12px; }
+    .copy-row { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.3); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); }
+
     /* Device code panel */
     #device-code-panel { display: none; margin-top: 16px; }
     .code-display {
@@ -542,53 +570,72 @@
   </div>
   <div class="step-body">
 
-    <div class="option-cards mb-4">
+    <!-- Quick setup wizard -->
+    <div class="setup-wizard mb-4">
 
-      <!-- Auto Setup card -->
-      <div class="option-card recommended">
-        <h3>Auto-Create Azure App</h3>
-        <p>We'll set one up in your tenant — takes 30 seconds, no portal needed.</p>
-        <label class="lbl" for="tenant-id-input">
-          Tenant ID
-          <span style="font-weight:400;color:var(--muted);font-size:11px;margin-left:6px">
-            portal.azure.com → Azure Active Directory → Overview → Tenant ID
-          </span>
-        </label>
-        <input type="text" class="inp mb-3" id="tenant-id-input"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" maxlength="36">
-        <button class="btn-galaxy" id="auto-setup-btn" onclick="startAutoSetup()">
-          ⚡ Start Auto-Setup
-        </button>
-
-        <!-- Device code panel -->
-        <div id="device-code-panel">
-          <div class="url-row mt-3">
-            <span style="font-size:13px;color:var(--muted)">Open in any browser:</span>
-            <button id="dc-open-btn" class="btn-galaxy-sm" onclick="window.open(dcVerificationUri, '_blank')" style="display:none">Open Browser →</button>
-            <button class="copy-btn" onclick="copyText(dcVerificationUri)">Copy URL</button>
-          </div>
-          <div class="code-display" id="dc-code">—</div>
-          <button class="copy-btn" style="display:block;margin:0 auto 12px" onclick="copyText(document.getElementById('dc-code').textContent.trim())">Copy code</button>
-          <div id="dc-status" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
-            <span class="spinner"></span>
-            <span class="pulse">Waiting for authorization…</span>
-          </div>
-          <div id="dc-success" style="display:none" class="alert alert-success mt-3">
-            <strong>App created!</strong> Client ID: <code id="dc-client-id" style="font-family:monospace;font-size:12px;"></code>
-            <br><button class="btn-galaxy-sm mt-3" onclick="useAutoClientId()">Continue →</button>
-          </div>
-          <div id="dc-error" style="display:none" class="alert alert-danger mt-3"></div>
+      <!-- Step A: Open Azure -->
+      <div class="wiz-step" id="wiz-a">
+        <div class="wiz-num">1</div>
+        <div class="wiz-body">
+          <div class="wiz-title">Open Azure App Registrations</div>
+          <div class="wiz-desc">Sign in with your Microsoft 365 admin account, then click <strong>New registration</strong>.</div>
+          <button class="btn-galaxy mt-2" onclick="window.open('https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade','_blank');wizNext('wiz-a','wiz-b')">
+            Open Azure Portal →
+          </button>
         </div>
       </div>
 
-      <!-- Manual Setup card -->
-      <div class="option-card">
-        <h3>Enter Client ID</h3>
-        <p>Already have an Azure App Registration? Paste your Client ID below.</p>
-        <label class="lbl" for="client-id-input">Application (Client) ID</label>
-        <input type="text" class="inp mb-3" id="client-id-input"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" maxlength="36">
-        <button class="btn-outline-galaxy" onclick="useManualClientId()">Use This Client ID</button>
+      <!-- Step B: Name & register -->
+      <div class="wiz-step wiz-locked" id="wiz-b">
+        <div class="wiz-num">2</div>
+        <div class="wiz-body">
+          <div class="wiz-title">Name & Register</div>
+          <div class="wiz-desc">Set the name (anything you like), leave defaults, click <strong>Register</strong>.</div>
+          <button class="btn-ghost mt-2" onclick="wizNext('wiz-b','wiz-c')">Done →</button>
+        </div>
+      </div>
+
+      <!-- Step C: Copy Client ID -->
+      <div class="wiz-step wiz-locked" id="wiz-c">
+        <div class="wiz-num">3</div>
+        <div class="wiz-body">
+          <div class="wiz-title">Copy the Application (Client) ID</div>
+          <div class="wiz-desc">It's on the Overview page right after you register. Paste it below.</div>
+          <input type="text" class="inp mt-2" id="client-id-input"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" maxlength="36"
+            oninput="if(this.value.length===36)wizNext('wiz-c','wiz-d')">
+        </div>
+      </div>
+
+      <!-- Step D: Add permissions -->
+      <div class="wiz-step wiz-locked" id="wiz-d">
+        <div class="wiz-num">4</div>
+        <div class="wiz-body">
+          <div class="wiz-title">Add API Permissions</div>
+          <div class="wiz-desc">In your new app: <strong>API permissions → Add a permission → Microsoft Graph → Delegated</strong> — add these four:</div>
+          <div class="perm-list mt-2">
+            <code>Sites.Read.All</code>
+            <code>Files.Read.All</code>
+            <code>Sites.ReadWrite.All</code>
+            <code>Files.ReadWrite.All</code>
+          </div>
+          <div class="wiz-desc mt-2">Then click <strong>Grant admin consent</strong>.</div>
+          <button class="btn-ghost mt-2" onclick="wizNext('wiz-d','wiz-e')">Done →</button>
+        </div>
+      </div>
+
+      <!-- Step E: Add redirect URI -->
+      <div class="wiz-step wiz-locked" id="wiz-e">
+        <div class="wiz-num">5</div>
+        <div class="wiz-body">
+          <div class="wiz-title">Add Redirect URI</div>
+          <div class="wiz-desc">In your app: <strong>Authentication → Add a platform → Single-page application</strong> — paste this URL:</div>
+          <div class="copy-row mt-2">
+            <code id="redirect-uri-display" style="font-size:12px;word-break:break-all;color:var(--teal)"></code>
+            <button class="copy-btn" onclick="copyText(document.getElementById('redirect-uri-display').textContent)">Copy</button>
+          </div>
+          <button class="btn-galaxy mt-3" onclick="useManualClientId()">All done — Connect →</button>
+        </div>
       </div>
 
     </div>
@@ -990,12 +1037,26 @@ window.addEventListener('load', async () => {
     }
   } catch(e) {}
 
+  // Init wizard — activate first step
+  const first = document.getElementById('wiz-a');
+  if (first) first.classList.add('wiz-active');
+
   renderTable();
   setupScrollSpy();
 });
 
 // ─────────────────────────────────────────────────────────────
-// Auto Setup — Device Code
+// Setup Wizard
+// ─────────────────────────────────────────────────────────────
+function wizNext(doneId, nextId) {
+  const done = document.getElementById(doneId);
+  const next = document.getElementById(nextId);
+  if (done) { done.classList.remove('wiz-active'); done.classList.add('wiz-done'); done.style.pointerEvents = 'none'; }
+  if (next) { next.classList.remove('wiz-locked'); next.classList.add('wiz-active'); next.style.pointerEvents = ''; }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Auto Setup — Device Code (kept for future use)
 // ─────────────────────────────────────────────────────────────
 async function startAutoSetup() {
   const tenantId = document.getElementById('tenant-id-input').value.trim();
