@@ -55,7 +55,7 @@ def index():
 
 @app.get("/api/ping")
 def ping():
-    return {"ok": True, "version": "2026-04-08-b"}
+    return {"ok": True, "version": "2026-04-08-c"}
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
@@ -482,16 +482,19 @@ GRAPH_PERMS = [
 
 class DeviceCodeStart(BaseModel):
     redirect_uri: str
+    tenant_id: str
 
 class DeviceCodePoll(BaseModel):
     device_code: str
     redirect_uri: str
+    tenant_id: str = "organizations"
 
 @app.post("/api/setup/device-code")
 def start_device_code(body: DeviceCodeStart):
     """Start device code flow to get an admin token for app registration creation."""
+    tenant = body.tenant_id.strip()
     resp = requests.post(
-        "https://login.microsoftonline.com/organizations/oauth2/v2.0/devicecode",
+        f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/devicecode",
         data={
             "client_id": AZURE_CLI_CLIENT,
             "scope": "https://graph.microsoft.com/Application.ReadWrite.All https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All https://graph.microsoft.com/Directory.Read.All offline_access",
@@ -513,8 +516,9 @@ def start_device_code(body: DeviceCodeStart):
 @app.post("/api/setup/poll")
 def poll_device_code(body: DeviceCodePoll):
     """Poll for device code completion. On success, creates an app registration."""
+    tenant = body.tenant_id.strip() or "organizations"
     resp = requests.post(
-        "https://login.microsoftonline.com/organizations/oauth2/v2.0/token",
+        f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
         data={
             "client_id": AZURE_CLI_CLIENT,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",

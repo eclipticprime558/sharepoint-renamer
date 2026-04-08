@@ -548,6 +548,14 @@
       <div class="option-card recommended">
         <h3>Auto-Create Azure App</h3>
         <p>We'll set one up in your tenant — takes 30 seconds, no portal needed.</p>
+        <label class="lbl" for="tenant-id-input">
+          Tenant ID
+          <span style="font-weight:400;color:var(--muted);font-size:11px;margin-left:6px">
+            portal.azure.com → Azure Active Directory → Overview → Tenant ID
+          </span>
+        </label>
+        <input type="text" class="inp mb-3" id="tenant-id-input"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" maxlength="36">
         <button class="btn-galaxy" id="auto-setup-btn" onclick="startAutoSetup()">
           ⚡ Start Auto-Setup
         </button>
@@ -990,6 +998,11 @@ window.addEventListener('load', async () => {
 // Auto Setup — Device Code
 // ─────────────────────────────────────────────────────────────
 async function startAutoSetup() {
+  const tenantId = document.getElementById('tenant-id-input').value.trim();
+  if (!tenantId || tenantId.length < 32) {
+    alert('Please enter your Tenant ID first.\n\nFind it at: portal.azure.com → Azure Active Directory → Overview');
+    return;
+  }
   document.getElementById('auto-setup-btn').disabled = true;
   document.getElementById('device-code-panel').style.display = 'block';
   document.getElementById('dc-success').style.display = 'none';
@@ -1000,7 +1013,7 @@ async function startAutoSetup() {
     const r = await fetch('/api/setup/device-code', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({redirect_uri: dcRedirectUri})
+      body: JSON.stringify({redirect_uri: dcRedirectUri, tenant_id: tenantId})
     });
     const d = await r.json();
     if (!r.ok) throw new Error(`[HTTP ${r.status}] ${d.detail || JSON.stringify(d)}`);
@@ -1029,7 +1042,7 @@ async function pollDeviceCode() {
     const r = await fetch('/api/setup/poll', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({device_code: dcDeviceCode, redirect_uri: dcRedirectUri})
+      body: JSON.stringify({device_code: dcDeviceCode, redirect_uri: dcRedirectUri, tenant_id: document.getElementById('tenant-id-input').value.trim()})
     });
     const d = await r.json();
 
