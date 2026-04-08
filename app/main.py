@@ -491,7 +491,7 @@ class DeviceCodePoll(BaseModel):
 def start_device_code(body: DeviceCodeStart):
     """Start device code flow to get an admin token for app registration creation."""
     resp = requests.post(
-        "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode",
+        "https://login.microsoftonline.com/organizations/oauth2/v2.0/devicecode",
         data={
             "client_id": AZURE_CLI_CLIENT,
             "scope": "https://graph.microsoft.com/Application.ReadWrite.All https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All https://graph.microsoft.com/Directory.Read.All offline_access",
@@ -514,7 +514,7 @@ def start_device_code(body: DeviceCodeStart):
 def poll_device_code(body: DeviceCodePoll):
     """Poll for device code completion. On success, creates an app registration."""
     resp = requests.post(
-        "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        "https://login.microsoftonline.com/organizations/oauth2/v2.0/token",
         data={
             "client_id": AZURE_CLI_CLIENT,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
