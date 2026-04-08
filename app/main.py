@@ -53,6 +53,11 @@ def index():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
+@app.get("/api/ping")
+def ping():
+    return {"ok": True, "version": "2026-04-08-b"}
+
+
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
 class TokenBody(BaseModel):
